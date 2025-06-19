@@ -413,7 +413,7 @@ const ApartmentManagement = () => {
                 <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-600 mb-2">💡 Bilgi</p>
                   <p className="text-xs text-blue-700">
-                    Yönetici girişi yapmadınız. Sadece verileri
+                    Yönetici girişi yapmadınız. Sadece işlemleri
                     görüntüleyebilirsiniz.
                   </p>
                 </div>
@@ -488,7 +488,7 @@ const ApartmentManagement = () => {
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-                  placeholder="Kullanıcı adınızı girin"
+                  placeholder="Kullanıcı adınızı giriniz"
                 />
               </div>
               <div>
@@ -504,7 +504,7 @@ const ApartmentManagement = () => {
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 pr-10"
                     onKeyPress={(e) => e.key === "Enter" && handleLogin()}
-                    placeholder="Şifrenizi girin"
+                    placeholder="Şifrenizi giriniz"
                   />
                   <button
                     type="button"
@@ -569,7 +569,6 @@ const ApartmentManagement = () => {
                   onChange={(e) => setSelectedYear(parseInt(e.target.value))}
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value={2024}>2024</option>
                   <option value={2025}>2025</option>
                   <option value={2026}>2026</option>
                 </select>
