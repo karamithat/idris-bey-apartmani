@@ -14,6 +14,8 @@ import {
   XCircle,
   AlertCircle,
   Info,
+  CreditCard,
+  Copy,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -47,6 +49,7 @@ const ApartmentManagement = () => {
   const [user, setUser] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showLoginForm, setShowLoginForm] = useState(false);
+  const [showAccountInfo, setShowAccountInfo] = useState(false);
   const [loginData, setLoginData] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -81,6 +84,17 @@ const ApartmentManagement = () => {
 
   const removeNotification = (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        showNotification(`${label} kopyalandı!`, "success");
+      })
+      .catch(() => {
+        showNotification("Kopyalama başarısız!", "error");
+      });
   };
 
   const months = [
@@ -446,6 +460,17 @@ const ApartmentManagement = () => {
               </div>
             )}
 
+            {/* Hesap Bilgisi Butonu */}
+            <div className="mt-6">
+              <button
+                onClick={() => setShowAccountInfo(true)}
+                className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                Hesap Bilgisi
+              </button>
+            </div>
+
             {/* Stats in Sidebar */}
             <div className="mt-6 space-y-3">
               <h3 className="text-sm font-medium text-gray-700">
@@ -467,6 +492,109 @@ const ApartmentManagement = () => {
           </div>
         </div>
       </div>
+
+      {/* Account Info Modal */}
+      {showAccountInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                <CreditCard className="h-6 w-6 mr-2 text-blue-600" />
+                Hesap Bilgisi
+              </h2>
+              <button
+                onClick={() => setShowAccountInfo(false)}
+                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Banka Adı
+                    </label>
+                    <div className="flex items-center justify-between bg-white p-2 rounded border">
+                      <span className="text-sm font-semibold">
+                        DENİZBANK A.Ş
+                      </span>
+                      <button
+                        onClick={() =>
+                          copyToClipboard("DENİZBANK A.Ş", "Banka adı")
+                        }
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                        title="Kopyala"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      IBAN
+                    </label>
+                    <div className="flex items-center justify-between bg-white p-2 rounded border">
+                      <span className="text-sm font-semibold">
+                        TR970013400002471685800001
+                      </span>
+                      <button
+                        onClick={() =>
+                          copyToClipboard(
+                            "TR97 0013 4000 0247 1685 8000 01",
+                            "IBAN"
+                          )
+                        }
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                        title="Kopyala"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hesap Adı
+                    </label>
+                    <div className="flex items-center justify-between bg-white p-2 rounded border">
+                      <span className="text-sm font-semibold">MİTHAT KARA</span>
+                      <button
+                        onClick={() =>
+                          copyToClipboard("MİTHAT KARA", "Hesap adı")
+                        }
+                        className="text-blue-600 hover:text-blue-800 p-1"
+                        title="Kopyala"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-yellow-50 rounded border border-yellow-200">
+                <p className="text-xs text-yellow-700">
+                  💡 Bilgileri kopyalamak için yanlarındaki kopyala butonlarını
+                  kullanabilirsiniz.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowAccountInfo(false)}
+                className="w-full bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors"
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Login Modal */}
       {showLoginForm && (
@@ -560,6 +688,7 @@ const ApartmentManagement = () => {
                   ))}
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Yıl
