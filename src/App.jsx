@@ -282,7 +282,7 @@ const filteredTransactions = transactions.filter(
   (t) => t.month === selectedMonth && t.year === selectedYear
 );
 
-// Seçili ay için
+// Seçilen ay için toplam gelir ve gider
 const totalIncome = filteredTransactions
   .filter((t) => t.type === "income")
   .reduce((sum, t) => sum + t.amount, 0);
@@ -291,15 +291,22 @@ const totalExpense = filteredTransactions
   .filter((t) => t.type === "expense")
   .reduce((sum, t) => sum + t.amount, 0);
 
-// Tüm zamanlar için kümülatif net toplam hesaplama
-const cumulativeIncome = transactions
+// Kümülatif (seçilen ay ve öncesi) toplam hesaplama
+const cumulativeTransactions = transactions.filter(
+  (t) =>
+    t.year < selectedYear ||
+    (t.year === selectedYear && t.month <= selectedMonth)
+);
+
+const cumulativeIncome = cumulativeTransactions
   .filter((t) => t.type === "income")
   .reduce((sum, t) => sum + t.amount, 0);
 
-const cumulativeExpense = transactions
+const cumulativeExpense = cumulativeTransactions
   .filter((t) => t.type === "expense")
   .reduce((sum, t) => sum + t.amount, 0);
 
+// Net toplam artık kümülatif hesaplanıyor
 const netTotal = cumulativeIncome - cumulativeExpense;
 
   if (loading) {
