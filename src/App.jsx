@@ -4,7 +4,7 @@ import {
   Menu,
   X,
   LogIn,
-  LogOut,
+  LogOut
   Eye,
   EyeOff,
   Loader2,
@@ -278,19 +278,29 @@ const ApartmentManagement = () => {
     }
   };
 
-  const filteredTransactions = transactions.filter(
-    (t) => t.month === selectedMonth && t.year === selectedYear
-  );
+const filteredTransactions = transactions.filter(
+  (t) => t.month === selectedMonth && t.year === selectedYear
+);
 
-  const totalIncome = filteredTransactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount, 0);
+// Seçili ay için
+const totalIncome = filteredTransactions
+  .filter((t) => t.type === "income")
+  .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpense = filteredTransactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+const totalExpense = filteredTransactions
+  .filter((t) => t.type === "expense")
+  .reduce((sum, t) => sum + t.amount, 0);
 
-  const netTotal = totalIncome - totalExpense;
+// Tüm zamanlar için kümülatif net toplam hesaplama
+const cumulativeIncome = transactions
+  .filter((t) => t.type === "income")
+  .reduce((sum, t) => sum + t.amount, 0);
+
+const cumulativeExpense = transactions
+  .filter((t) => t.type === "expense")
+  .reduce((sum, t) => sum + t.amount, 0);
+
+const netTotal = cumulativeIncome - cumulativeExpense;
 
   if (loading) {
     return (
