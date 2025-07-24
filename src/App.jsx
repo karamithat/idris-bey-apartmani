@@ -4,7 +4,7 @@ import {
   Menu,
   X,
   LogIn,
-  LogOut
+  LogOut,
   Eye,
   EyeOff,
   Loader2,
@@ -69,6 +69,7 @@ const ApartmentManagement = () => {
   });
   const [showAddForm, setShowAddForm] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Notification functions
   const showNotification = (message, type = "info", duration = 4000) => {
@@ -278,36 +279,40 @@ const ApartmentManagement = () => {
     }
   };
 
-const filteredTransactions = transactions.filter(
-  (t) => t.month === selectedMonth && t.year === selectedYear
-);
+  const filteredTransactions = transactions.filter(
+    (t) =>
+      t.month === selectedMonth &&
+      t.year === selectedYear &&
+      (t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.amount.toString().includes(searchTerm))
+  );
 
-// Seçilen ay için toplam gelir ve gider
-const totalIncome = filteredTransactions
-  .filter((t) => t.type === "income")
-  .reduce((sum, t) => sum + t.amount, 0);
+  // Seçilen ay için toplam gelir ve gider
+  const totalIncome = filteredTransactions
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-const totalExpense = filteredTransactions
-  .filter((t) => t.type === "expense")
-  .reduce((sum, t) => sum + t.amount, 0);
+  const totalExpense = filteredTransactions
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-// Kümülatif (seçilen ay ve öncesi) toplam hesaplama
-const cumulativeTransactions = transactions.filter(
-  (t) =>
-    t.year < selectedYear ||
-    (t.year === selectedYear && t.month <= selectedMonth)
-);
+  // Kümülatif (seçilen ay ve öncesi) toplam hesaplama
+  const cumulativeTransactions = transactions.filter(
+    (t) =>
+      t.year < selectedYear ||
+      (t.year === selectedYear && t.month <= selectedMonth)
+  );
 
-const cumulativeIncome = cumulativeTransactions
-  .filter((t) => t.type === "income")
-  .reduce((sum, t) => sum + t.amount, 0);
+  const cumulativeIncome = cumulativeTransactions
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-const cumulativeExpense = cumulativeTransactions
-  .filter((t) => t.type === "expense")
-  .reduce((sum, t) => sum + t.amount, 0);
+  const cumulativeExpense = cumulativeTransactions
+    .filter((t) => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0);
 
-// Net toplam artık kümülatif hesaplanıyor
-const netTotal = cumulativeIncome - cumulativeExpense;
+  // Net toplam artık kümülatif hesaplanıyor
+  const netTotal = cumulativeIncome - cumulativeExpense;
 
   if (loading) {
     return (
@@ -719,6 +724,19 @@ const netTotal = cumulativeIncome - cumulativeExpense;
                   <option value={2026}>2026</option>
                 </select>
               </div>
+            </div>
+
+            <div className="mt-4 sm:mt-0 w-full sm:w-auto">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ara (isim veya tutar)
+              </label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Açıklama veya tutara göre ara..."
+              />
             </div>
 
             {user?.role === "admin" && (
