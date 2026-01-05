@@ -550,11 +550,11 @@ const handleLogin = () => {
                     </label>
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
                       <span className="text-sm font-semibold">
-                        DENİZBANK A.Ş
+                        VAKIFBANK
                       </span>
                       <button
                         onClick={() =>
-                          copyToClipboard("DENİZBANK A.Ş", "Banka adı")
+                          copyToClipboard("VAKIFBANK", "Banka adı")
                         }
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
@@ -570,12 +570,12 @@ const handleLogin = () => {
                     </label>
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
                       <span className="text-sm font-semibold">
-                        TR970013400002471685800001
+                        TR76 0001 5001 5800 7366 4929 51
                       </span>
                       <button
                         onClick={() =>
                           copyToClipboard(
-                            "TR97 0013 4000 0247 1685 8000 01",
+                            "TR76 0001 5001 5800 7366 4929 51",
                             "IBAN"
                           )
                         }
@@ -592,10 +592,10 @@ const handleLogin = () => {
                       Hesap Adı
                     </label>
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
-                      <span className="text-sm font-semibold">MİTHAT KARA</span>
+                      <span className="text-sm font-semibold">NECATİ ARSLAN</span>
                       <button
                         onClick={() =>
-                          copyToClipboard("MİTHAT KARA", "Hesap adı")
+                          copyToClipboard("NECATİ ARSLAN", "Hesap adı")
                         }
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
