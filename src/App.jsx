@@ -145,12 +145,21 @@ const ApartmentManagement = () => {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = () => {
+const handleLogin = () => {
     if (
       loginData.username === "mithatkara" &&
       loginData.password === "marcelo123"
     ) {
       setUser({ username: "mithatkara", role: "admin" });
+      setShowLoginForm(false);
+      setLoginData({ username: "", password: "" });
+      setIsMenuOpen(false);
+      showNotification("Başarıyla giriş yapıldı! Hoş geldiniz.", "success");
+    } else if (
+      loginData.username === "necatiarslan" &&
+      loginData.password === "necati123"
+    ) {
+      setUser({ username: "necatiarslan", role: "admin" });
       setShowLoginForm(false);
       setLoginData({ username: "", password: "" });
       setIsMenuOpen(false);
