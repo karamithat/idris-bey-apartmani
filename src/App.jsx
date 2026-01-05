@@ -16,6 +16,9 @@ import {
   Info,
   CreditCard,
   Copy,
+  Building2,
+  Users,
+  Home,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -29,6 +32,8 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  setDoc,
+  getDoc,
 } from "firebase/firestore";
 
 // Firebase configuration
@@ -70,6 +75,31 @@ const ApartmentManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Kat Planı State'leri
+  const [activeTab, setActiveTab] = useState("transactions"); // "transactions" veya "floorplan"
+  const [apartments, setApartments] = useState({});
+  const [selectedApartment, setSelectedApartment] = useState(null);
+  const [newResident, setNewResident] = useState("");
+  const [showResidentModal, setShowResidentModal] = useState(false);
+  const [apartmentsLoading, setApartmentsLoading] = useState(true);
+
+  // Kat konfigürasyonu: 7 kat, ilk ve son kat 2 daire, ortadakiler 4 daire = 24 daire
+  const floorConfig = [2, 4, 4, 4, 4, 4, 2];
+
+  // Daire numarasını hesapla
+  const getDaireNo = (floor, apt) => {
+    let daireNo = 0;
+    for (let f = 1; f < floor; f++) {
+      daireNo += floorConfig[f - 1];
+    }
+    return daireNo + apt;
+  };
+
+  const getFloorLabel = (floor) => {
+    if (floor === 1) return "Zemin Kat";
+    return `${floor}. Kat`;
+  };
 
   // Notification functions
   const showNotification = (message, type = "info", duration = 4000) => {
@@ -113,7 +143,7 @@ const ApartmentManagement = () => {
     "Aralık",
   ];
 
-  // Firebase'den verileri dinle
+  // Firebase'den işlemleri dinle
   useEffect(() => {
     const q = query(
       collection(db, "transactions"),
@@ -145,7 +175,36 @@ const ApartmentManagement = () => {
     return () => unsubscribe();
   }, []);
 
-const handleLogin = () => {
+  // Firebase'den daire sakinlerini dinle
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      doc(db, "apartments", "residents"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setApartments(docSnap.data());
+        } else {
+          // Başlangıç verileri
+          const initial = {};
+          for (let floor = 1; floor <= 7; floor++) {
+            const apartmentCount = floorConfig[floor - 1];
+            for (let apt = 1; apt <= apartmentCount; apt++) {
+              initial[`${floor}-${apt}`] = [];
+            }
+          }
+          setApartments(initial);
+        }
+        setApartmentsLoading(false);
+      },
+      (error) => {
+        console.error("Daire verileri alınırken hata:", error);
+        setApartmentsLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = () => {
     if (
       loginData.username === "mithatkara" &&
       loginData.password === "marcelo123"
@@ -266,7 +325,6 @@ const handleLogin = () => {
   };
 
   const handleDeleteTransaction = async (transactionId) => {
-    // Modern confirmation modal yerine
     const shouldDelete = window.confirm(
       "Bu işlemi silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz."
     );
@@ -288,6 +346,52 @@ const handleLogin = () => {
     }
   };
 
+  // Sakin ekleme fonksiyonu
+  const handleAddResident = async () => {
+    if (!selectedApartment || !newResident.trim()) {
+      showNotification("Lütfen daire seçin ve sakin adı girin!", "warning");
+      return;
+    }
+
+    try {
+      const updatedApartments = {
+        ...apartments,
+        [selectedApartment]: [...(apartments[selectedApartment] || []), newResident.trim()],
+      };
+
+      await setDoc(doc(db, "apartments", "residents"), updatedApartments);
+
+      setNewResident("");
+      setShowResidentModal(false);
+      showNotification("Sakin başarıyla eklendi!", "success");
+    } catch (error) {
+      console.error("Sakin eklenirken hata:", error);
+      showNotification("Sakin eklenirken bir hata oluştu!", "error");
+    }
+  };
+
+  // Sakin silme fonksiyonu
+  const handleRemoveResident = async (aptKey, residentIndex) => {
+    if (!user?.role === "admin") return;
+
+    const shouldDelete = window.confirm("Bu sakini silmek istediğinizden emin misiniz?");
+    if (!shouldDelete) return;
+
+    try {
+      const updatedResidents = apartments[aptKey].filter((_, i) => i !== residentIndex);
+      const updatedApartments = {
+        ...apartments,
+        [aptKey]: updatedResidents,
+      };
+
+      await setDoc(doc(db, "apartments", "residents"), updatedApartments);
+      showNotification("Sakin başarıyla silindi!", "success");
+    } catch (error) {
+      console.error("Sakin silinirken hata:", error);
+      showNotification("Sakin silinirken bir hata oluştu!", "error");
+    }
+  };
+
   const filteredTransactions = transactions.filter(
     (t) =>
       t.month === selectedMonth &&
@@ -296,7 +400,6 @@ const handleLogin = () => {
         t.amount.toString().includes(searchTerm))
   );
 
-  // Seçilen ay için toplam gelir ve gider
   const totalIncome = filteredTransactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
@@ -305,7 +408,6 @@ const handleLogin = () => {
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Kümülatif (seçilen ay ve öncesi) toplam hesaplama
   const cumulativeTransactions = transactions.filter(
     (t) =>
       t.year < selectedYear ||
@@ -320,10 +422,13 @@ const handleLogin = () => {
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Net toplam artık kümülatif hesaplanıyor
   const netTotal = cumulativeIncome - cumulativeExpense;
 
-  if (loading) {
+  // Toplam sakin sayısı
+  const totalResidents = Object.values(apartments).flat().length;
+  const emptyApartments = Object.values(apartments).filter((r) => r.length === 0).length;
+
+  if (loading || apartmentsLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -341,7 +446,7 @@ const handleLogin = () => {
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className={`flex items-center p-4 rounded-lg shadow-lg border-l-4 bg-white min-w-80 max-w-md transform transition-all duration-300 ease-in-out animate-in slide-in-from-right-5 ${
+            className={`flex items-center p-4 rounded-lg shadow-lg border-l-4 bg-white min-w-80 max-w-md transform transition-all duration-300 ease-in-out ${
               notification.type === "success"
                 ? "border-green-500"
                 : notification.type === "error"
@@ -408,14 +513,12 @@ const handleLogin = () => {
               </div>
             </div>
 
-            {/* Online Status */}
             <div className="hidden sm:flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-600">Canlı Veriler</span>
               </div>
 
-              {/* Hamburger Menu */}
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
@@ -424,7 +527,6 @@ const handleLogin = () => {
               </button>
             </div>
 
-            {/* Mobile Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="sm:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
@@ -434,6 +536,34 @@ const handleLogin = () => {
           </div>
         </div>
       </header>
+
+      {/* Tab Navigation */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div className="bg-white rounded-lg shadow-md p-1 inline-flex">
+          <button
+            onClick={() => setActiveTab("transactions")}
+            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+              activeTab === "transactions"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <CreditCard className="h-4 w-4 mr-2" />
+            Gelir/Gider
+          </button>
+          <button
+            onClick={() => setActiveTab("floorplan")}
+            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+              activeTab === "floorplan"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            Kat Planı
+          </button>
+        </div>
+      </div>
 
       {/* Sidebar Menu */}
       <div
@@ -491,7 +621,6 @@ const handleLogin = () => {
               </div>
             )}
 
-            {/* Hesap Bilgisi Butonu */}
             <div className="mt-6">
               <button
                 onClick={() => setShowAccountInfo(true)}
@@ -502,7 +631,6 @@ const handleLogin = () => {
               </button>
             </div>
 
-            {/* Stats in Sidebar */}
             <div className="mt-6 space-y-3">
               <h3 className="text-sm font-medium text-gray-700">
                 Toplam İstatistikler
@@ -513,10 +641,12 @@ const handleLogin = () => {
                   <span className="font-semibold">{transactions.length}</span>
                 </div>
                 <div className="flex justify-between items-center p-2 bg-blue-50 rounded text-sm">
-                  <span>Bu Ay</span>
-                  <span className="font-semibold">
-                    {filteredTransactions.length}
-                  </span>
+                  <span>Toplam Sakin</span>
+                  <span className="font-semibold">{totalResidents}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-purple-50 rounded text-sm">
+                  <span>Boş Daire</span>
+                  <span className="font-semibold">{emptyApartments}</span>
                 </div>
               </div>
             </div>
@@ -549,13 +679,9 @@ const handleLogin = () => {
                       Banka Adı
                     </label>
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
-                      <span className="text-sm font-semibold">
-                        VAKIFBANK
-                      </span>
+                      <span className="text-sm font-semibold">VAKIFBANK</span>
                       <button
-                        onClick={() =>
-                          copyToClipboard("VAKIFBANK", "Banka adı")
-                        }
+                        onClick={() => copyToClipboard("VAKIFBANK", "Banka adı")}
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
                       >
@@ -574,10 +700,7 @@ const handleLogin = () => {
                       </span>
                       <button
                         onClick={() =>
-                          copyToClipboard(
-                            "TR76 0001 5001 5800 7366 4929 51",
-                            "IBAN"
-                          )
+                          copyToClipboard("TR76 0001 5001 5800 7366 4929 51", "IBAN")
                         }
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
@@ -594,9 +717,7 @@ const handleLogin = () => {
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
                       <span className="text-sm font-semibold">NECATİ ARSLAN</span>
                       <button
-                        onClick={() =>
-                          copyToClipboard("NECATİ ARSLAN", "Hesap adı")
-                        }
+                        onClick={() => copyToClipboard("NECATİ ARSLAN", "Hesap adı")}
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
                       >
@@ -699,222 +820,473 @@ const handleLogin = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ay
-                </label>
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {months.map((month, index) => (
-                    <option key={index} value={index + 1}>
-                      {month}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        {activeTab === "transactions" ? (
+          <>
+            {/* Controls */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ay
+                    </label>
+                    <select
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {months.map((month, index) => (
+                        <option key={index} value={index + 1}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Yıl
-                </label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value={2025}>2025</option>
-                  <option value={2026}>2026</option>
-                </select>
-              </div>
-            </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Yıl
+                    </label>
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                    </select>
+                  </div>
+                </div>
 
-            <div className="mt-4 sm:mt-0 w-full sm:w-auto">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Ara (isim veya tutar)
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Açıklama veya tutara göre ara..."
-              />
-            </div>
+                <div className="mt-4 sm:mt-0 w-full sm:w-auto">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Ara (isim veya tutar)
+                  </label>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Açıklama veya tutara göre ara..."
+                  />
+                </div>
 
-            {user?.role === "admin" && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Yeni Kayıt
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Toplam Gelir
-            </h3>
-            <p className="text-3xl font-bold text-green-600">
-              ₺{totalIncome.toLocaleString("tr-TR")}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {filteredTransactions.filter((t) => t.type === "income").length}{" "}
-              işlem
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Toplam Gider
-            </h3>
-            <p className="text-3xl font-bold text-red-600">
-              ₺{totalExpense.toLocaleString("tr-TR")}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {filteredTransactions.filter((t) => t.type === "expense").length}{" "}
-              işlem
-            </p>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              Net Tutar
-            </h3>
-            <p
-              className={`text-3xl font-bold ${
-                netTotal >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              ₺{netTotal.toLocaleString("tr-TR")}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {netTotal >= 0 ? "Pozitif bakiye" : "Negatif bakiye"}
-            </p>
-          </div>
-        </div>
-
-        {/* Transactions List */}
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {months[selectedMonth - 1]} {selectedYear} - İşlemler
-            </h2>
-          </div>
-          <div className="overflow-x-auto">
-            {filteredTransactions.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <p className="text-lg mb-2">Bu ay için kayıt bulunamadı.</p>
                 {user?.role === "admin" && (
                   <button
                     onClick={() => setShowAddForm(true)}
-                    className="text-indigo-600 hover:text-indigo-800 font-medium"
+                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                   >
-                    İlk kaydı eklemek ister misiniz?
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Yeni Kayıt
                   </button>
                 )}
               </div>
-            ) : (
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tarih
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Açıklama
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tip
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tutar
-                    </th>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Toplam Gelir
+                </h3>
+                <p className="text-3xl font-bold text-green-600">
+                  ₺{totalIncome.toLocaleString("tr-TR")}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {filteredTransactions.filter((t) => t.type === "income").length}{" "}
+                  işlem
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Toplam Gider
+                </h3>
+                <p className="text-3xl font-bold text-red-600">
+                  ₺{totalExpense.toLocaleString("tr-TR")}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {filteredTransactions.filter((t) => t.type === "expense").length}{" "}
+                  işlem
+                </p>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Net Tutar
+                </h3>
+                <p
+                  className={`text-3xl font-bold ${
+                    netTotal >= 0 ? "text-green-600" : "text-red-600"
+                  }`}
+                >
+                  ₺{netTotal.toLocaleString("tr-TR")}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {netTotal >= 0 ? "Pozitif bakiye" : "Negatif bakiye"}
+                </p>
+              </div>
+            </div>
+
+            {/* Transactions List */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="px-6 py-4 border-b">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {months[selectedMonth - 1]} {selectedYear} - İşlemler
+                </h2>
+              </div>
+              <div className="overflow-x-auto">
+                {filteredTransactions.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <p className="text-lg mb-2">Bu ay için kayıt bulunamadı.</p>
                     {user?.role === "admin" && (
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        İşlemler
-                      </th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredTransactions.map((transaction) => (
-                    <tr key={transaction.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {new Date(transaction.date).toLocaleDateString("tr-TR")}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {transaction.description}
-                        {transaction.addedBy && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            Ekleyen: {transaction.addedBy}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            transaction.type === "income"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {transaction.type === "income" ? "Gelir" : "Gider"}
-                        </span>
-                      </td>
-                      <td
-                        className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                          transaction.type === "income"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
+                      <button
+                        onClick={() => setShowAddForm(true)}
+                        className="text-indigo-600 hover:text-indigo-800 font-medium"
                       >
-                        {transaction.type === "income" ? "+" : "-"}₺
-                        {transaction.amount.toLocaleString("tr-TR")}
-                      </td>
-                      {user?.role === "admin" && (
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                          <div className="flex items-center justify-center space-x-2">
-                            <button
-                              onClick={() => handleEditTransaction(transaction)}
-                              className="text-indigo-600 hover:text-indigo-900 p-1 rounded transition-colors"
-                              title="Düzenle"
+                        İlk kaydı eklemek ister misiniz?
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tarih
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Açıklama
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tip
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tutar
+                        </th>
+                        {user?.role === "admin" && (
+                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            İşlemler
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredTransactions.map((transaction) => (
+                        <tr key={transaction.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {new Date(transaction.date).toLocaleDateString("tr-TR")}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {transaction.description}
+                            {transaction.addedBy && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Ekleyen: {transaction.addedBy}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                transaction.type === "income"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
                             >
-                              <Edit2 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() =>
-                                handleDeleteTransaction(transaction.id)
+                              {transaction.type === "income" ? "Gelir" : "Gider"}
+                            </span>
+                          </td>
+                          <td
+                            className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
+                              transaction.type === "income"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {transaction.type === "income" ? "+" : "-"}₺
+                            {transaction.amount.toLocaleString("tr-TR")}
+                          </td>
+                          {user?.role === "admin" && (
+                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                              <div className="flex items-center justify-center space-x-2">
+                                <button
+                                  onClick={() => handleEditTransaction(transaction)}
+                                  className="text-indigo-600 hover:text-indigo-900 p-1 rounded transition-colors"
+                                  title="Düzenle"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleDeleteTransaction(transaction.id)
+                                  }
+                                  disabled={deleting === transaction.id}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded transition-colors disabled:opacity-50"
+                                  title="Sil"
+                                >
+                                  {deleting === transaction.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Kat Planı Görünümü */
+          <div>
+            {/* Admin için Sakin Ekleme Paneli */}
+            {user?.role === "admin" && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 className="text-lg font-semibold text-gray-700 mb-3 flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  Sakin Ekle
+                </h2>
+                <div className="flex flex-wrap gap-3 items-center">
+                  <select
+                    value={selectedApartment || ""}
+                    onChange={(e) => setSelectedApartment(e.target.value)}
+                    className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Daire Seçin</option>
+                    {[...Array(7)].map((_, floorIdx) => {
+                      const floor = 7 - floorIdx;
+                      const aptCount = floorConfig[floor - 1];
+                      return [...Array(aptCount)].map((_, aptIdx) => (
+                        <option
+                          key={`${floor}-${aptIdx + 1}`}
+                          value={`${floor}-${aptIdx + 1}`}
+                        >
+                          {getFloorLabel(floor)} - Daire {getDaireNo(floor, aptIdx + 1)}
+                        </option>
+                      ));
+                    })}
+                  </select>
+                  <input
+                    type="text"
+                    value={newResident}
+                    onChange={(e) => setNewResident(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && handleAddResident()}
+                    placeholder="Sakin adı..."
+                    className="flex-1 min-w-48 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                  />
+                  <button
+                    onClick={handleAddResident}
+                    disabled={!selectedApartment || !newResident.trim()}
+                    className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <PlusCircle className="h-4 w-4 inline mr-2" />
+                    Ekle
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Apartman Bilgileri */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-indigo-500">
+                <div className="flex items-center">
+                  <Building2 className="h-8 w-8 text-indigo-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500">Toplam Kat</p>
+                    <p className="text-2xl font-bold text-gray-900">7</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
+                <div className="flex items-center">
+                  <Home className="h-8 w-8 text-purple-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500">Toplam Daire</p>
+                    <p className="text-2xl font-bold text-gray-900">24</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                <div className="flex items-center">
+                  <Users className="h-8 w-8 text-green-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500">Toplam Sakin</p>
+                    <p className="text-2xl font-bold text-gray-900">{totalResidents}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+                <div className="flex items-center">
+                  <Home className="h-8 w-8 text-orange-500 mr-3" />
+                  <div>
+                    <p className="text-sm text-gray-500">Boş Daire</p>
+                    <p className="text-2xl font-bold text-gray-900">{emptyApartments}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bina Görünümü */}
+            <div className="bg-amber-800 p-4 rounded-t-3xl shadow-2xl">
+              {/* Çatı */}
+              <div className="bg-red-700 h-10 rounded-t-3xl mb-3 flex items-center justify-center">
+                <span className="text-white font-bold">🏠 ÇATI</span>
+              </div>
+
+              {/* Katlar */}
+              {[...Array(7)].map((_, floorIdx) => {
+                const floor = 7 - floorIdx;
+                const apartmentCount = floorConfig[floor - 1];
+                const isSpecialFloor = apartmentCount === 2;
+
+                return (
+                  <div key={floor} className="mb-3">
+                    {/* Kat Etiketi */}
+                    <div className="flex items-center mb-2">
+                      <div className="bg-amber-600 text-white text-sm font-bold px-3 py-1 rounded">
+                        {getFloorLabel(floor)}
+                      </div>
+                    </div>
+
+                    {/* Daireler */}
+                    <div
+                      className={`grid gap-3 ${
+                        isSpecialFloor ? "grid-cols-2" : "grid-cols-4"
+                      }`}
+                    >
+                      {[...Array(apartmentCount)].map((_, aptIdx) => {
+                        const aptKey = `${floor}-${aptIdx + 1}`;
+                        const residents = apartments[aptKey] || [];
+                        const isSelected = selectedApartment === aptKey;
+                        const daireNo = getDaireNo(floor, aptIdx + 1);
+
+                        return (
+                          <div
+                            key={aptKey}
+                            onClick={() => user?.role === "admin" && setSelectedApartment(aptKey)}
+                            className={`
+                              bg-gradient-to-b from-gray-100 to-gray-200 
+                              rounded-lg p-3 min-h-32 
+                              border-4 transition-all duration-200
+                              ${user?.role === "admin" ? "cursor-pointer" : "cursor-default"}
+                              ${
+                                isSelected
+                                  ? "border-indigo-500 shadow-lg scale-105"
+                                  : "border-gray-400 hover:border-indigo-300"
                               }
-                              disabled={deleting === transaction.id}
-                              className="text-red-600 hover:text-red-900 p-1 rounded transition-colors disabled:opacity-50"
-                              title="Sil"
-                            >
-                              {deleting === transaction.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                            `}
+                          >
+                            {/* Kapı */}
+                            <div className="flex justify-center mb-2">
+                              <div className="w-8 h-10 bg-amber-700 rounded-t-lg relative">
+                                <div className="absolute right-1.5 top-4 w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                              </div>
+                            </div>
+
+                            {/* Daire Numarası */}
+                            <div className="text-center text-sm font-bold text-gray-700 mb-2">
+                              D.{daireNo}
+                            </div>
+
+                            {/* Sakinler */}
+                            <div className="space-y-1">
+                              {residents.length === 0 ? (
+                                <div className="text-xs text-gray-400 text-center italic">
+                                  Boş
+                                </div>
                               ) : (
-                                <Trash2 className="h-4 w-4" />
+                                residents.map((resident, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center justify-between bg-blue-100 rounded px-2 py-1 group"
+                                  >
+                                    <span className="text-xs text-gray-700 truncate">
+                                      👤 {resident}
+                                    </span>
+                                    {user?.role === "admin" && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRemoveResident(aptKey, idx);
+                                        }}
+                                        className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))
                               )}
-                            </button>
+                            </div>
                           </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Zemin */}
+            <div className="bg-gray-600 h-8 rounded-b-lg flex items-center justify-center">
+              <span className="text-gray-300 text-sm">🚪 GİRİŞ</span>
+            </div>
+
+            {/* Sakin Listesi */}
+            <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+              <h3 className="font-semibold text-gray-700 mb-4 flex items-center">
+                <Users className="h-5 w-5 mr-2" />
+                Sakin Listesi
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Object.entries(apartments)
+                  .filter(([_, residents]) => residents.length > 0)
+                  .sort((a, b) => {
+                    const [floorA, aptA] = a[0].split("-").map(Number);
+                    const [floorB, aptB] = b[0].split("-").map(Number);
+                    const daireA = getDaireNo(floorA, aptA);
+                    const daireB = getDaireNo(floorB, aptB);
+                    return daireA - daireB;
+                  })
+                  .map(([key, residents]) => {
+                    const [floor, apt] = key.split("-").map(Number);
+                    const daireNo = getDaireNo(floor, apt);
+                    return (
+                      <div
+                        key={key}
+                        className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2 border"
+                      >
+                        <span className="font-medium text-indigo-600 whitespace-nowrap">
+                          D.{daireNo}:
+                        </span>
+                        <span className="text-gray-700 truncate">
+                          {residents.join(", ")}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+              {Object.values(apartments).flat().length === 0 && (
+                <p className="text-center text-gray-500 py-4">
+                  Henüz kayıtlı sakin bulunmuyor.
+                </p>
+              )}
+            </div>
+
+            {/* Bilgi Notu */}
+            {!user && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-700 flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
+                  Sakin eklemek veya silmek için yönetici girişi yapmanız gerekmektedir.
+                </p>
+              </div>
             )}
           </div>
-        </div>
+        )}
       </main>
 
       {/* Add Transaction Modal */}
