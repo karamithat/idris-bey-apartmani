@@ -426,7 +426,9 @@ const ApartmentManagement = () => {
 
   // Toplam sakin sayısı
   const totalResidents = Object.values(apartments).flat().length;
-  const emptyApartments = Object.values(apartments).filter((r) => r.length === 0).length;
+const totalApartments = 24;
+const occupiedApartments = Object.values(apartments).filter((r) => r.length > 0).length;
+const emptyApartments = totalApartments - occupiedApartments;
 
   if (loading || apartmentsLoading) {
     return (
