@@ -1170,8 +1170,8 @@ const emptyApartments = totalApartments - occupiedApartments;
                             key={aptKey}
                             onClick={() => user?.role === "admin" && setSelectedApartment(aptKey)}
                             className={`
-                              bg-gradient-to-b from-gray-100 to-gray-200 
-                              rounded-lg p-3 min-h-32 
+                             bg-gradient-to-b from-gray-100 to-gray-200 
+                              rounded-lg p-2 sm:p-3 min-h-36 sm:min-h-32 
                               border-4 transition-all duration-200
                               ${user?.role === "admin" ? "cursor-pointer" : "cursor-default"}
                               ${
@@ -1200,28 +1200,27 @@ const emptyApartments = totalApartments - occupiedApartments;
                                   Boş
                                 </div>
                               ) : (
-                                residents.map((resident, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center justify-between bg-blue-100 rounded px-2 py-1 group"
-                                  >
-                                    <span className="text-xs text-gray-700 truncate">
-                                      👤 {resident}
-                                    </span>
-                                    {user?.role === "admin" && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRemoveResident(aptKey, idx);
-                                        }}
-                                        className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </button>
-                                    )}
-                                  </div>
-                                ))
-                              )}
+                              {residents.map((resident, idx) => (
+  <div
+    key={idx}
+    className="flex items-center justify-between bg-blue-100 rounded px-1.5 py-1 group"
+  >
+    <span className="text-[10px] sm:text-xs text-gray-700 leading-tight break-words whitespace-normal">
+      👤 {resident}
+    </span>
+    {user?.role === "admin" && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRemoveResident(aptKey, idx);
+        }}
+        className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    )}
+  </div>
+))}
                             </div>
                           </div>
                         );
