@@ -8,28 +8,58 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Print Stilleri -->
- <style>
+<style>
   @media print {
+    /* Sadece makbuz içeriğini göster */
     body * {
       visibility: hidden;
     }
     
-    .fixed > div {
+    .makbuz-content,
+    .makbuz-content * {
       visibility: visible !important;
     }
     
-    .fixed > div * {
-      visibility: visible !important;
+    /* Modal arka planını gizle */
+    .fixed {
+      position: static !important;
+      background: white !important;
     }
     
-    .print\:hidden {
+    /* Butonları gizle */
+    button {
       display: none !important;
     }
     
-    @page {
-      margin: 1cm;
-      size: A4;
+    /* Sadece makbuz içeriğini göster */
+    .makbuz-content {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      padding: 1cm !important;
     }
+    
+    /* Tek sayfaya sığdır */
+    @page {
+      size: A4;
+      margin: 1cm;
+    }
+    
+    /* Sayfa kırılmalarını engelle */
+    .makbuz-content > div {
+      page-break-inside: avoid;
+    }
+    
+    /* Modal padding'i kaldır */
+    .p-4, .p-8 {
+      padding: 0 !important;
+    }
+  }
+  
+  /* Modal scroll fix */
+  .fixed.inset-0 {
+    overflow-y: auto;
   }
 </style>
   </head>
