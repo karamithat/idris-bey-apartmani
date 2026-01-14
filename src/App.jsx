@@ -5,6 +5,9 @@ import {
   X,
   LogIn,
   LogOut,
+  DollarSign,
+  Printer,
+  Calendar,
   Eye,
   EyeOff,
   Loader2,
@@ -73,6 +76,10 @@ const ApartmentManagement = () => {
     date: new Date().toISOString().split("T")[0],
   });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [aidatPayments, setAidatPayments] = useState({});
+  const [selectedAidatMonth, setSelectedAidatMonth] = useState(new Date().getMonth() + 1);
+  const [selectedAidatYear, setSelectedAidatYear] = useState(new Date().getFullYear());
+  const AIDAT_AMOUNT = 750;
   const [notifications, setNotifications] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -203,6 +210,22 @@ const ApartmentManagement = () => {
 
     return () => unsubscribe();
   }, []);
+  useEffect(() => {
+  const unsubscribe = onSnapshot(
+    doc(db, "aidatPayments", "monthly"),
+    (docSnap) => {
+      if (docSnap.exists()) {
+        setAidatPayments(docSnap.data());
+      } else {
+        setAidatPayments({});
+      }
+    },
+    (error) => {
+      console.error("Aidat verileri alınırken hata:", error);
+    }
+  );
+  return () => unsubscribe();
+}, []);
 
   const handleLogin = () => {
     if (
@@ -345,6 +368,38 @@ const ApartmentManagement = () => {
       setDeleting(null);
     }
   };
+  const handleAidatPayment = async (daireKey, paid) => {
+  if (!user?.role === "admin") return;
+
+  try {
+    const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
+    const updatedPayments = {
+      ...aidatPayments,
+      [monthKey]: {
+        ...(aidatPayments[monthKey] || {}),
+        [daireKey]: {
+          paid,
+          paymentDate: new Date().toISOString(),
+          amount: AIDAT_AMOUNT,
+          paidBy: user.username,
+        }
+      }
+    };
+
+    await setDoc(doc(db, "aidatPayments", "monthly"), updatedPayments);
+    showNotification(
+      paid ? "Aidat ödemesi kaydedildi!" : "Aidat ödemesi iptal edildi!", 
+      "success"
+    );
+  } catch (error) {
+    console.error("Aidat kaydedilirken hata:", error);
+    showNotification("Aidat kaydedilirken hata oluştu!", "error");
+  }
+};
+
+const printAidatList = () => {
+  window.print();
+};
 
   // Sakin ekleme fonksiyonu
   const handleAddResident = async () => {
@@ -564,6 +619,17 @@ const emptyApartments = totalApartments - occupiedApartments;
             <Building2 className="h-4 w-4 mr-2" />
             Kat Planı
           </button>
+          <button
+  onClick={() => setActiveTab("aidat")}
+  className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+    activeTab === "aidat"
+      ? "bg-indigo-600 text-white"
+      : "text-gray-600 hover:bg-gray-100"
+  }`}
+>
+  <DollarSign className="h-4 w-4 mr-2" />
+  Aidat Takibi
+</button>
         </div>
       </div>
 
