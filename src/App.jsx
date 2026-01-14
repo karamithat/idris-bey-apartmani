@@ -5,9 +5,6 @@ import {
   X,
   LogIn,
   LogOut,
-  DollarSign,
-  Printer,
-  Calendar,
   Eye,
   EyeOff,
   Loader2,
@@ -22,6 +19,9 @@ import {
   Building2,
   Users,
   Home,
+  DollarSign,
+  Printer,
+  Calendar,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -76,25 +76,25 @@ const ApartmentManagement = () => {
     date: new Date().toISOString().split("T")[0],
   });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [aidatPayments, setAidatPayments] = useState({});
-  const [selectedAidatMonth, setSelectedAidatMonth] = useState(new Date().getMonth() + 1);
-  const [selectedAidatYear, setSelectedAidatYear] = useState(new Date().getFullYear());
-  const AIDAT_AMOUNT = 750;
   const [notifications, setNotifications] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   
   // Kat Planı State'leri
-  const [activeTab, setActiveTab] = useState("transactions"); // "transactions" veya "floorplan"
+  const [activeTab, setActiveTab] = useState("transactions");
   const [apartments, setApartments] = useState({});
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [newResident, setNewResident] = useState("");
   const [showResidentModal, setShowResidentModal] = useState(false);
   const [apartmentsLoading, setApartmentsLoading] = useState(true);
 
-  // Kat konfigürasyonu: 7 kat, ilk ve son kat 2 daire, ortadakiler 4 daire = 24 daire
+  // Aidat State'leri
+  const [aidatPayments, setAidatPayments] = useState({});
+  const [selectedAidatMonth, setSelectedAidatMonth] = useState(new Date().getMonth() + 1);
+  const [selectedAidatYear, setSelectedAidatYear] = useState(new Date().getFullYear());
+  const AIDAT_AMOUNT = 750;
+
   const floorConfig = [2, 4, 4, 4, 4, 4, 2];
 
-  // Daire numarasını hesapla
   const getDaireNo = (floor, apt) => {
     let daireNo = 0;
     for (let f = 1; f < floor; f++) {
@@ -108,13 +108,10 @@ const ApartmentManagement = () => {
     return `${floor}. Kat`;
   };
 
-  // Notification functions
   const showNotification = (message, type = "info", duration = 4000) => {
     const id = Date.now();
     const notification = { id, message, type };
-
     setNotifications((prev) => [...prev, notification]);
-
     setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
     }, duration);
@@ -136,18 +133,8 @@ const ApartmentManagement = () => {
   };
 
   const months = [
-    "Ocak",
-    "Şubat",
-    "Mart",
-    "Nisan",
-    "Mayıs",
-    "Haziran",
-    "Temmuz",
-    "Ağustos",
-    "Eylül",
-    "Ekim",
-    "Kasım",
-    "Aralık",
+    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
   ];
 
   // Firebase'den işlemleri dinle
@@ -190,7 +177,6 @@ const ApartmentManagement = () => {
         if (docSnap.exists()) {
           setApartments(docSnap.data());
         } else {
-          // Başlangıç verileri
           const initial = {};
           for (let floor = 1; floor <= 7; floor++) {
             const apartmentCount = floorConfig[floor - 1];
@@ -210,22 +196,25 @@ const ApartmentManagement = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Firebase'den aidat ödemelerini dinle
   useEffect(() => {
-  const unsubscribe = onSnapshot(
-    doc(db, "aidatPayments", "monthly"),
-    (docSnap) => {
-      if (docSnap.exists()) {
-        setAidatPayments(docSnap.data());
-      } else {
-        setAidatPayments({});
+    const unsubscribe = onSnapshot(
+      doc(db, "aidatPayments", "monthly"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setAidatPayments(docSnap.data());
+        } else {
+          setAidatPayments({});
+        }
+      },
+      (error) => {
+        console.error("Aidat verileri alınırken hata:", error);
       }
-    },
-    (error) => {
-      console.error("Aidat verileri alınırken hata:", error);
-    }
-  );
-  return () => unsubscribe();
-}, []);
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   const handleLogin = () => {
     if (
@@ -368,40 +357,7 @@ const ApartmentManagement = () => {
       setDeleting(null);
     }
   };
-  const handleAidatPayment = async (daireKey, paid) => {
-  if (!user?.role === "admin") return;
 
-  try {
-    const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
-    const updatedPayments = {
-      ...aidatPayments,
-      [monthKey]: {
-        ...(aidatPayments[monthKey] || {}),
-        [daireKey]: {
-          paid,
-          paymentDate: new Date().toISOString(),
-          amount: AIDAT_AMOUNT,
-          paidBy: user.username,
-        }
-      }
-    };
-
-    await setDoc(doc(db, "aidatPayments", "monthly"), updatedPayments);
-    showNotification(
-      paid ? "Aidat ödemesi kaydedildi!" : "Aidat ödemesi iptal edildi!", 
-      "success"
-    );
-  } catch (error) {
-    console.error("Aidat kaydedilirken hata:", error);
-    showNotification("Aidat kaydedilirken hata oluştu!", "error");
-  }
-};
-
-const printAidatList = () => {
-  window.print();
-};
-
-  // Sakin ekleme fonksiyonu
   const handleAddResident = async () => {
     if (!selectedApartment || !newResident.trim()) {
       showNotification("Lütfen daire seçin ve sakin adı girin!", "warning");
@@ -425,7 +381,6 @@ const printAidatList = () => {
     }
   };
 
-  // Sakin silme fonksiyonu
   const handleRemoveResident = async (aptKey, residentIndex) => {
     if (!user?.role === "admin") return;
 
@@ -445,6 +400,40 @@ const printAidatList = () => {
       console.error("Sakin silinirken hata:", error);
       showNotification("Sakin silinirken bir hata oluştu!", "error");
     }
+  };
+
+  // Aidat ödeme kaydet
+  const handleAidatPayment = async (daireKey, paid) => {
+    if (!user?.role === "admin") return;
+
+    try {
+      const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
+      const updatedPayments = {
+        ...aidatPayments,
+        [monthKey]: {
+          ...(aidatPayments[monthKey] || {}),
+          [daireKey]: {
+            paid,
+            paymentDate: new Date().toISOString(),
+            amount: AIDAT_AMOUNT,
+            paidBy: user.username,
+          }
+        }
+      };
+
+      await setDoc(doc(db, "aidatPayments", "monthly"), updatedPayments);
+      showNotification(
+        paid ? "Aidat ödemesi kaydedildi!" : "Aidat ödemesi iptal edildi!", 
+        "success"
+      );
+    } catch (error) {
+      console.error("Aidat kaydedilirken hata:", error);
+      showNotification("Aidat kaydedilirken hata oluştu!", "error");
+    }
+  };
+
+  const printAidatList = () => {
+    window.print();
   };
 
   const filteredTransactions = transactions.filter(
@@ -479,11 +468,10 @@ const printAidatList = () => {
 
   const netTotal = cumulativeIncome - cumulativeExpense;
 
-  // Toplam sakin sayısı
   const totalResidents = Object.values(apartments).flat().length;
-const totalApartments = 24;
-const occupiedApartments = Object.values(apartments).filter((r) => r.length > 0).length;
-const emptyApartments = totalApartments - occupiedApartments;
+  const totalApartments = 24;
+  const occupiedApartments = Object.values(apartments).filter((r) => r.length > 0).length;
+  const emptyApartments = totalApartments - occupiedApartments;
 
   if (loading || apartmentsLoading) {
     return (
@@ -620,19 +608,18 @@ const emptyApartments = totalApartments - occupiedApartments;
             Kat Planı
           </button>
           <button
-  onClick={() => setActiveTab("aidat")}
-  className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-    activeTab === "aidat"
-      ? "bg-indigo-600 text-white"
-      : "text-gray-600 hover:bg-gray-100"
-  }`}
->
-  <DollarSign className="h-4 w-4 mr-2" />
-  Aidat Takibi
-</button>
+            onClick={() => setActiveTab("aidat")}
+            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+              activeTab === "aidat"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <DollarSign className="h-4 w-4 mr-2" />
+            Aidat Takibi
+          </button>
         </div>
       </div>
-
       {/* Sidebar Menu */}
       <div
         className={`fixed inset-y-0 right-0 z-50 w-80 bg-white shadow-xl transform transition-transform duration-300 ${
@@ -888,7 +875,7 @@ const emptyApartments = totalApartments - occupiedApartments;
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "transactions" ? (
+         {activeTab === "transactions" ? (
           <>
             {/* Controls */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -1107,7 +1094,7 @@ const emptyApartments = totalApartments - occupiedApartments;
               </div>
             </div>
           </>
-        ) : (
+      ) : activeTab === "floorplan" ? (
           /* Kat Planı Görünümü */
           <div>
             {/* Admin için Sakin Ekleme Paneli */}
@@ -1354,9 +1341,240 @@ const emptyApartments = totalApartments - occupiedApartments;
               </div>
             )}
           </div>
-        )}
-      </main>
+      ) : activeTab === "aidat" ? (
+          /* Aidat Takibi Görünümü */
+          <div>
+            {/* Filtreler ve Yazdır */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Ay
+                    </label>
+                    <select
+                      value={selectedAidatMonth}
+                      onChange={(e) => setSelectedAidatMonth(parseInt(e.target.value))}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {months.map((month, index) => (
+                        <option key={index} value={index + 1}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Yıl
+                    </label>
+                    <select
+                      value={selectedAidatYear}
+                      onChange={(e) => setSelectedAidatYear(parseInt(e.target.value))}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                      <option value={2027}>2027</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={printAidatList}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Yazdır
+                </button>
+              </div>
+            </div>
 
+            {/* Aidat Özet Kartları */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:mb-4">
+              {(() => {
+                const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
+                const monthPayments = aidatPayments[monthKey] || {};
+                const paidCount = Object.values(monthPayments).filter(p => p.paid).length;
+                const unpaidCount = 24 - paidCount;
+                const totalCollected = paidCount * AIDAT_AMOUNT;
+                const totalPending = unpaidCount * AIDAT_AMOUNT;
+
+                return (
+                  <>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
+                        <div>
+                          <p className="text-sm text-gray-500">Ödenen</p>
+                          <p className="text-2xl font-bold text-gray-900">{paidCount}/24</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-red-500">
+                      <div className="flex items-center">
+                        <XCircle className="h-8 w-8 text-red-500 mr-3" />
+                        <div>
+                          <p className="text-sm text-gray-500">Ödenmedi</p>
+                          <p className="text-2xl font-bold text-gray-900">{unpaidCount}/24</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+                      <div className="flex items-center">
+                        <DollarSign className="h-8 w-8 text-blue-500 mr-3" />
+                        <div>
+                          <p className="text-sm text-gray-500">Toplanan</p>
+                          <p className="text-2xl font-bold text-gray-900">₺{totalCollected.toLocaleString('tr-TR')}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+                      <div className="flex items-center">
+                        <DollarSign className="h-8 w-8 text-orange-500 mr-3" />
+                        <div>
+                          <p className="text-sm text-gray-500">Bekleyen</p>
+                          <p className="text-2xl font-bold text-gray-900">₺{totalPending.toLocaleString('tr-TR')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Aidat Listesi Başlık (Yazdırma için) */}
+            <div className="hidden print:block mb-6 text-center">
+              <h1 className="text-2xl font-bold text-gray-900">İdris Bey Apartmanı</h1>
+              <h2 className="text-xl text-gray-700">
+                {months[selectedAidatMonth - 1]} {selectedAidatYear} - Aidat Listesi
+              </h2>
+              <p className="text-sm text-gray-600 mt-2">
+                Yazdırma Tarihi: {new Date().toLocaleDateString('tr-TR')}
+              </p>
+            </div>
+
+            {/* Aidat Tablosu */}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="px-6 py-4 border-b print:border-b-2">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  {months[selectedAidatMonth - 1]} {selectedAidatYear} - Aidat Listesi
+                </h2>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 print:bg-gray-100">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Daire No
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Sakin Adı
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Aidat Tutarı
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ödeme Tarihi
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:hidden">
+                        Durum
+                      </th>
+                      <th className="hidden print:table-cell px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Ödendi/Ödenmedi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {(() => {
+                      const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
+                      const monthPayments = aidatPayments[monthKey] || {};
+                      const allApartments = [];
+                      
+                      // Tüm daireleri sıralı bir şekilde oluştur
+                      for (let floor = 1; floor <= 7; floor++) {
+                        const apartmentCount = floorConfig[floor - 1];
+                        for (let apt = 1; apt <= apartmentCount; apt++) {
+                          const aptKey = `${floor}-${apt}`;
+                          const daireNo = getDaireNo(floor, apt);
+                          const residents = apartments[aptKey] || [];
+                          const payment = monthPayments[aptKey];
+                          
+                          allApartments.push({
+                            daireNo,
+                            aptKey,
+                            residents,
+                            payment,
+                          });
+                        }
+                      }
+
+                      return allApartments.map(({ daireNo, aptKey, residents, payment }) => (
+                        <tr key={aptKey} className="hover:bg-gray-50 print:hover:bg-white">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            Daire {daireNo}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-900">
+                            {residents.length > 0 ? residents.join(", ") : (
+                              <span className="text-gray-400 italic">Boş</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
+                            ₺{AIDAT_AMOUNT.toLocaleString('tr-TR')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                            {payment?.paid && payment?.paymentDate ? (
+                              <div className="flex items-center justify-center">
+                                <Calendar className="h-4 w-4 mr-1 text-green-600" />
+                                {new Date(payment.paymentDate).toLocaleDateString('tr-TR')}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
+                            {user?.role === "admin" ? (
+                              <input
+                                type="checkbox"
+                                checked={payment?.paid || false}
+                                onChange={(e) => handleAidatPayment(aptKey, e.target.checked)}
+                                className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                              />
+                            ) : (
+                              <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                                payment?.paid
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}>
+                                {payment?.paid ? "Ödendi" : "Ödenmedi"}
+                              </span>
+                            )}
+                          </td>
+                          <td className="hidden print:table-cell px-6 py-4 whitespace-nowrap text-center text-sm">
+                            {payment?.paid ? "✓ Ödendi" : "✗ Ödenmedi"}
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Bilgi Notu */}
+            {!user && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 print:hidden">
+                <p className="text-sm text-blue-700 flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
+                  Aidat ödemelerini işaretlemek için yönetici girişi yapmanız gerekmektedir.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : null}
+      </main>
       {/* Add Transaction Modal */}
       {showAddForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
