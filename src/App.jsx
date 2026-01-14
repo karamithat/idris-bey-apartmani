@@ -91,6 +91,8 @@ const ApartmentManagement = () => {
   const [aidatPayments, setAidatPayments] = useState({});
   const [selectedAidatMonth, setSelectedAidatMonth] = useState(new Date().getMonth() + 1);
   const [selectedAidatYear, setSelectedAidatYear] = useState(new Date().getFullYear());
+  const [showMakbuzModal, setShowMakbuzModal] = useState(false);
+  const [selectedMakbuz, setSelectedMakbuz] = useState(null);
   const AIDAT_AMOUNT = 750;
 
   const floorConfig = [2, 4, 4, 4, 4, 4, 2];
@@ -431,6 +433,25 @@ const ApartmentManagement = () => {
       showNotification("Aidat kaydedilirken hata oluştu!", "error");
     }
   };
+  const handleShowMakbuz = (daireNo, residents, payment, aptKey) => {
+  const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
+  const monthPayments = aidatPayments[monthKey] || {};
+  const paymentData = monthPayments[aptKey];
+  
+  setSelectedMakbuz({
+    daireNo,
+    residents: residents.join(", ") || "Boş Daire",
+    amount: AIDAT_AMOUNT,
+    paymentDate: paymentData?.paymentDate ? new Date(paymentData.paymentDate).toLocaleDateString('tr-TR') : "-",
+    month: months[selectedAidatMonth - 1],
+    year: selectedAidatYear,
+  });
+  setShowMakbuzModal(true);
+};
+
+const printMakbuz = () => {
+  window.print();
+};
 
   const printAidatList = () => {
     window.print();
@@ -1380,13 +1401,7 @@ const ApartmentManagement = () => {
                   </div>
                 </div>
                 
-                <button
-                  onClick={printAidatList}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Yazdır
-                </button>
+               
               </div>
             </div>
 
@@ -1479,8 +1494,8 @@ const ApartmentManagement = () => {
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Ödeme Tarihi
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:hidden">
-                        Durum
+                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:hidden">
+                        İşlemler
                       </th>
                       <th className="hidden print:table-cell px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Ödendi/Ödenmedi
@@ -1534,24 +1549,40 @@ const ApartmentManagement = () => {
                               <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
-                            {user?.role === "admin" ? (
-                              <input
-                                type="checkbox"
-                                checked={payment?.paid || false}
-                                onChange={(e) => handleAidatPayment(aptKey, e.target.checked)}
-                                className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                              />
-                            ) : (
-                              <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                                payment?.paid
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}>
-                                {payment?.paid ? "Ödendi" : "Ödenmedi"}
-                              </span>
-                            )}
-                          </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
+  <div className="flex items-center justify-center space-x-3">
+    {user?.role === "admin" && (
+      <input
+        type="checkbox"
+        checked={payment?.paid || false}
+        onChange={(e) => handleAidatPayment(aptKey, e.target.checked)}
+        className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+      />
+    )}
+    
+    {!user?.role && (
+      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+        payment?.paid
+          ? "bg-green-100 text-green-800"
+          : "bg-red-100 text-red-800"
+      }`}>
+        {payment?.paid ? "Ödendi" : "Ödenmedi"}
+      </span>
+    )}
+    
+    {payment?.paid && (
+      <button
+        onClick={() => handleShowMakbuz(daireNo, residents, payment, aptKey)}
+        className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
+        title="Makbuz Görüntüle"
+      >
+        <Eye className="h-3.5 w-3.5 mr-1" />
+        Makbuz
+      </button>
+    )}
+  </div>
+</td>
+                        
                           <td className="hidden print:table-cell px-6 py-4 whitespace-nowrap text-center text-sm">
                             {payment?.paid ? "✓ Ödendi" : "✗ Ödenmedi"}
                           </td>
@@ -1781,6 +1812,174 @@ const ApartmentManagement = () => {
                   className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 transition-colors disabled:opacity-50"
                 >
                   İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Makbuz Modal */}
+      {showMakbuzModal && selectedMakbuz && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b print:hidden">
+              <h2 className="text-lg font-semibold text-gray-900">Tahsilat Makbuzu</h2>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={printMakbuz}
+                  className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                >
+                  <Printer className="h-4 w-4 mr-1" />
+                  Yazdır
+                </button>
+                <button
+                  onClick={() => setShowMakbuzModal(false)}
+                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Makbuz Content */}
+            <div className="p-8">
+              <div className="border-4 border-gray-800 rounded-lg p-6">
+                {/* Header */}
+                <div className="text-center mb-6 border-b-2 border-gray-300 pb-4">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-1">APARTMAN</h1>
+                  <h2 className="text-xl font-semibold text-gray-700">TAHSİLAT MAKBUZU</h2>
+                </div>
+
+                {/* Info Section */}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <div className="mb-3">
+                      <label className="text-sm text-gray-600">Ödeme Yapanın</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">{selectedMakbuz.residents}</span>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-sm text-gray-600">Adı Soyadı</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">{selectedMakbuz.residents}</span>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-sm text-gray-600">Apartman Adı</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">İdris Bey Apartmanı</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Daire No</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">Daire {selectedMakbuz.daireNo}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <div className="mb-3">
+                      <label className="text-sm text-gray-600">Seri No</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">A-{selectedMakbuz.daireNo.toString().padStart(3, '0')}</span>
+                      </div>
+                    </div>
+                    <div className="mb-3">
+                      <label className="text-sm text-gray-600">Sıra No</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">{selectedMakbuz.daireNo.toString().padStart(4, '0')}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Tarih</label>
+                      <div className="border-b border-dotted border-gray-400 pb-1">
+                        <span className="font-semibold">{selectedMakbuz.paymentDate}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Section */}
+                <div className="mb-6">
+                  <div className="border border-gray-800">
+                    <div className="grid grid-cols-12 border-b border-gray-800 bg-gray-50">
+                      <div className="col-span-6 border-r border-gray-800 p-2 text-center font-semibold text-sm">
+                        TAHSİL OLUNAN GELİRİN
+                      </div>
+                      <div className="col-span-3 border-r border-gray-800 p-2 text-center font-semibold text-sm">
+                        Ay ve Yıl
+                      </div>
+                      <div className="col-span-3 p-2 text-center font-semibold text-sm">
+                        TUTAR<br/>₺
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-12 border-b border-gray-800">
+                      <div className="col-span-6 border-r border-gray-800 p-2 text-center font-semibold text-sm">
+                        Nev'i
+                      </div>
+                      <div className="col-span-3 border-r border-gray-800 p-2 text-center text-sm">
+                        Ay ve Yıl
+                      </div>
+                      <div className="col-span-3 p-2"></div>
+                    </div>
+                    
+                    {/* Data Row */}
+                    <div className="grid grid-cols-12 min-h-[120px]">
+                      <div className="col-span-6 border-r border-gray-800 p-3">
+                        <div className="font-semibold text-lg">Aidat</div>
+                      </div>
+                      <div className="col-span-3 border-r border-gray-800 p-3 text-center">
+                        <div className="font-semibold">{selectedMakbuz.month} {selectedMakbuz.year}</div>
+                      </div>
+                      <div className="col-span-3 p-3 text-right">
+                        <div className="font-bold text-lg">₺{selectedMakbuz.amount.toLocaleString('tr-TR')}</div>
+                      </div>
+                    </div>
+
+                    {/* Total Row */}
+                    <div className="grid grid-cols-12 border-t-2 border-gray-800 bg-gray-50">
+                      <div className="col-span-9 border-r border-gray-800 p-2 text-right font-bold">
+                        Toplam
+                      </div>
+                      <div className="col-span-3 p-2 text-right font-bold text-lg">
+                        ₺{selectedMakbuz.amount.toLocaleString('tr-TR')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="grid grid-cols-2 gap-8 mt-8">
+                  <div>
+                    <label className="text-sm text-gray-600">Yalnız</label>
+                    <div className="border-b border-dotted border-gray-400 pb-1 mb-1">
+                      <span className="font-semibold capitalize">
+                        {new Intl.NumberFormat('tr-TR', {
+                          style: 'currency',
+                          currency: 'TRY',
+                        }).format(selectedMakbuz.amount).replace('₺', '')} TL
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm text-gray-600">Yönetici</label>
+                    <div className="border-b border-dotted border-gray-400 pb-1 mb-1 text-center">
+                      <span className="font-semibold">İmza</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="mt-6 text-center print:hidden">
+                <button
+                  onClick={() => setShowMakbuzModal(false)}
+                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                >
+                  Kapat
                 </button>
               </div>
             </div>
