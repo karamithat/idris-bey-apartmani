@@ -8,68 +8,30 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Print Stilleri -->
-    <style>
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-        
-        .print\:block,
-        .print\:table-cell,
-        .print\:block *,
-        .print\:table-cell * {
-          visibility: visible !important;
-        }
-        
-        .print\:hidden {
-          display: none !important;
-        }
-        
-        header, 
-        .fixed, 
-        nav,
-        button:not(.print\:block button) {
-          display: none !important;
-        }
-        
-        main {
-          padding: 0 !important;
-          margin: 0 !important;
-          width: 100% !important;
-        }
-        
-        table {
-          page-break-inside: auto;
-          width: 100%;
-        }
-        
-        thead {
-          display: table-header-group;
-        }
-        
-        tr {
-          page-break-inside: avoid;
-          page-break-after: auto;
-        }
-        
-        .print\:mb-4 {
-          margin-bottom: 1rem !important;
-        }
-        
-        .print\:border-b-2 {
-          border-bottom-width: 2px !important;
-        }
-        
-        .print\:bg-gray-100 {
-          background-color: #f3f4f6 !important;
-        }
-        
-        @page {
-          margin: 1cm;
-          size: A4;
-        }
-      }
-    </style>
+ <style>
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    
+    .fixed > div {
+      visibility: visible !important;
+    }
+    
+    .fixed > div * {
+      visibility: visible !important;
+    }
+    
+    .print\:hidden {
+      display: none !important;
+    }
+    
+    @page {
+      margin: 1cm;
+      size: A4;
+    }
+  }
+</style>
   </head>
   <body>
     <div id="root"></div>
