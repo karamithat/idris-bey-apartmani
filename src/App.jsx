@@ -1819,23 +1819,24 @@ const printMakbuz = () => {
         </div>
       )}
       {/* Makbuz Modal */}
+{/* Makbuz Modal */}
       {showMakbuzModal && selectedMakbuz && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b print:hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-2xl my-8">
+            {/* Modal Header - Always Visible */}
+            <div className="flex items-center justify-between p-4 border-b bg-gray-50 sticky top-0 z-10">
               <h2 className="text-lg font-semibold text-gray-900">Tahsilat Makbuzu</h2>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={printMakbuz}
-                  className="flex items-center px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                  className="flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                 >
                   <Printer className="h-4 w-4 mr-1" />
-                  Yazdır
+                  <span className="hidden sm:inline">Yazdır</span>
                 </button>
                 <button
                   onClick={() => setShowMakbuzModal(false)}
-                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 bg-white border border-gray-300"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1843,108 +1844,108 @@ const printMakbuz = () => {
             </div>
 
             {/* Makbuz Content */}
-            <div className="p-8">
-              <div className="border-4 border-gray-800 rounded-lg p-6">
+            <div className="p-4 sm:p-8 makbuz-content">
+              <div className="border-4 border-gray-800 rounded-lg p-4 sm:p-6 bg-white">
                 {/* Header */}
-                <div className="text-center mb-6 border-b-2 border-gray-300 pb-4">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-1">APARTMAN</h1>
-                  <h2 className="text-xl font-semibold text-gray-700">TAHSİLAT MAKBUZU</h2>
+                <div className="text-center mb-4 sm:mb-6 border-b-2 border-gray-300 pb-3 sm:pb-4">
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">APARTMAN</h1>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-700">TAHSİLAT MAKBUZU</h2>
                 </div>
 
                 {/* Info Section */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
                   <div>
-                    <div className="mb-3">
-                      <label className="text-sm text-gray-600">Ödeme Yapanın</label>
+                    <div className="mb-2 sm:mb-3">
+                      <label className="text-xs sm:text-sm text-gray-600">Ödeme Yapanın</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">{selectedMakbuz.residents}</span>
+                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.residents}</span>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label className="text-sm text-gray-600">Adı Soyadı</label>
+                    <div className="mb-2 sm:mb-3">
+                      <label className="text-xs sm:text-sm text-gray-600">Adı Soyadı</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">{selectedMakbuz.residents}</span>
+                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.residents}</span>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label className="text-sm text-gray-600">Apartman Adı</label>
+                    <div className="mb-2 sm:mb-3">
+                      <label className="text-xs sm:text-sm text-gray-600">Apartman Adı</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">İdris Bey Apartmanı</span>
+                        <span className="font-semibold text-sm sm:text-base">İdris Bey Apartmanı</span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-sm text-gray-600">Daire No</label>
+                      <label className="text-xs sm:text-sm text-gray-600">Daire No</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">Daire {selectedMakbuz.daireNo}</span>
+                        <span className="font-semibold text-sm sm:text-base">Daire {selectedMakbuz.daireNo}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-right">
-                    <div className="mb-3">
-                      <label className="text-sm text-gray-600">Seri No</label>
+                  <div className="text-left sm:text-right">
+                    <div className="mb-2 sm:mb-3">
+                      <label className="text-xs sm:text-sm text-gray-600">Seri No</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">A-{selectedMakbuz.daireNo.toString().padStart(3, '0')}</span>
+                        <span className="font-semibold text-sm sm:text-base">A-{selectedMakbuz.daireNo.toString().padStart(3, '0')}</span>
                       </div>
                     </div>
-                    <div className="mb-3">
-                      <label className="text-sm text-gray-600">Sıra No</label>
+                    <div className="mb-2 sm:mb-3">
+                      <label className="text-xs sm:text-sm text-gray-600">Sıra No</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">{selectedMakbuz.daireNo.toString().padStart(4, '0')}</span>
+                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.daireNo.toString().padStart(4, '0')}</span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-sm text-gray-600">Tarih</label>
+                      <label className="text-xs sm:text-sm text-gray-600">Tarih</label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold">{selectedMakbuz.paymentDate}</span>
+                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.paymentDate}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Table Section */}
-                <div className="mb-6">
+                <div className="mb-4 sm:mb-6">
                   <div className="border border-gray-800">
                     <div className="grid grid-cols-12 border-b border-gray-800 bg-gray-50">
-                      <div className="col-span-6 border-r border-gray-800 p-2 text-center font-semibold text-sm">
+                      <div className="col-span-6 border-r border-gray-800 p-2 text-center font-semibold text-xs sm:text-sm">
                         TAHSİL OLUNAN GELİRİN
                       </div>
-                      <div className="col-span-3 border-r border-gray-800 p-2 text-center font-semibold text-sm">
+                      <div className="col-span-3 border-r border-gray-800 p-2 text-center font-semibold text-xs sm:text-sm">
                         Ay ve Yıl
                       </div>
-                      <div className="col-span-3 p-2 text-center font-semibold text-sm">
+                      <div className="col-span-3 p-2 text-center font-semibold text-xs sm:text-sm">
                         TUTAR<br/>₺
                       </div>
                     </div>
                     <div className="grid grid-cols-12 border-b border-gray-800">
-                      <div className="col-span-6 border-r border-gray-800 p-2 text-center font-semibold text-sm">
+                      <div className="col-span-6 border-r border-gray-800 p-2 text-center font-semibold text-xs sm:text-sm">
                         Nev'i
                       </div>
-                      <div className="col-span-3 border-r border-gray-800 p-2 text-center text-sm">
+                      <div className="col-span-3 border-r border-gray-800 p-2 text-center text-xs sm:text-sm">
                         Ay ve Yıl
                       </div>
                       <div className="col-span-3 p-2"></div>
                     </div>
                     
                     {/* Data Row */}
-                    <div className="grid grid-cols-12 min-h-[120px]">
-                      <div className="col-span-6 border-r border-gray-800 p-3">
-                        <div className="font-semibold text-lg">Aidat</div>
+                    <div className="grid grid-cols-12 min-h-[80px] sm:min-h-[120px]">
+                      <div className="col-span-6 border-r border-gray-800 p-2 sm:p-3">
+                        <div className="font-semibold text-base sm:text-lg">Aidat</div>
                       </div>
-                      <div className="col-span-3 border-r border-gray-800 p-3 text-center">
-                        <div className="font-semibold">{selectedMakbuz.month} {selectedMakbuz.year}</div>
+                      <div className="col-span-3 border-r border-gray-800 p-2 sm:p-3 text-center">
+                        <div className="font-semibold text-sm sm:text-base">{selectedMakbuz.month} {selectedMakbuz.year}</div>
                       </div>
-                      <div className="col-span-3 p-3 text-right">
-                        <div className="font-bold text-lg">₺{selectedMakbuz.amount.toLocaleString('tr-TR')}</div>
+                      <div className="col-span-3 p-2 sm:p-3 text-right">
+                        <div className="font-bold text-base sm:text-lg">₺{selectedMakbuz.amount.toLocaleString('tr-TR')}</div>
                       </div>
                     </div>
 
                     {/* Total Row */}
                     <div className="grid grid-cols-12 border-t-2 border-gray-800 bg-gray-50">
-                      <div className="col-span-9 border-r border-gray-800 p-2 text-right font-bold">
+                      <div className="col-span-9 border-r border-gray-800 p-2 text-right font-bold text-sm sm:text-base">
                         Toplam
                       </div>
-                      <div className="col-span-3 p-2 text-right font-bold text-lg">
+                      <div className="col-span-3 p-2 text-right font-bold text-base sm:text-lg">
                         ₺{selectedMakbuz.amount.toLocaleString('tr-TR')}
                       </div>
                     </div>
@@ -1952,36 +1953,33 @@ const printMakbuz = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="grid grid-cols-2 gap-8 mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mt-4 sm:mt-8">
                   <div>
-                    <label className="text-sm text-gray-600">Yalnız</label>
+                    <label className="text-xs sm:text-sm text-gray-600">Yalnız</label>
                     <div className="border-b border-dotted border-gray-400 pb-1 mb-1">
-                      <span className="font-semibold capitalize">
-                        {new Intl.NumberFormat('tr-TR', {
-                          style: 'currency',
-                          currency: 'TRY',
-                        }).format(selectedMakbuz.amount).replace('₺', '')} TL
+                      <span className="font-semibold text-sm sm:text-base capitalize">
+                        Yediyüzelli Türk Lirası
                       </span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm text-gray-600">Yönetici</label>
+                    <label className="text-xs sm:text-sm text-gray-600">Yönetici</label>
                     <div className="border-b border-dotted border-gray-400 pb-1 mb-1 text-center">
-                      <span className="font-semibold">İmza</span>
+                      <span className="font-semibold text-sm sm:text-base">İmza</span>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Close Button */}
-              <div className="mt-6 text-center print:hidden">
-                <button
-                  onClick={() => setShowMakbuzModal(false)}
-                  className="px-6 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
-                >
-                  Kapat
-                </button>
-              </div>
+            {/* Bottom Close Button - Mobile Friendly */}
+            <div className="p-4 border-t bg-gray-50 sticky bottom-0">
+              <button
+                onClick={() => setShowMakbuzModal(false)}
+                className="w-full px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+              >
+                Kapat
+              </button>
             </div>
           </div>
         </div>
