@@ -9,57 +9,27 @@
     
     <!-- Print Stilleri -->
 <style>
-  @media print {
-    /* Sadece makbuz içeriğini göster */
-    body * {
-      visibility: hidden;
-    }
-    
-    .makbuz-content,
-    .makbuz-content * {
-      visibility: visible !important;
-    }
-    
-    /* Modal arka planını gizle */
-    .fixed {
-      position: static !important;
-      background: white !important;
-    }
-    
-    /* Butonları gizle */
-    button {
-      display: none !important;
-    }
-    
-    /* Sadece makbuz içeriğini göster */
-    .makbuz-content {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      padding: 1cm !important;
-    }
-    
-    /* Tek sayfaya sığdır */
-    @page {
-      size: A4;
-      margin: 1cm;
-    }
-    
-    /* Sayfa kırılmalarını engelle */
-    .makbuz-content > div {
-      page-break-inside: avoid;
-    }
-    
-    /* Modal padding'i kaldır */
-    .p-4, .p-8 {
-      padding: 0 !important;
-    }
-  }
-  
   /* Modal scroll fix */
   .fixed.inset-0 {
     overflow-y: auto;
+  }
+
+  @media print {
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+
+    html,
+    body,
+    #root {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+    }
   }
 </style>
   </head>

@@ -22,6 +22,7 @@ import {
   DollarSign,
   Printer,
   Calendar,
+  Droplets,
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import {
@@ -36,7 +37,6 @@ import {
   deleteDoc,
   doc,
   setDoc,
-  getDoc,
 } from "firebase/firestore";
 
 // Firebase configuration
@@ -78,7 +78,7 @@ const ApartmentManagement = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Kat Planı State'leri
   const [activeTab, setActiveTab] = useState("transactions");
   const [apartments, setApartments] = useState({});
@@ -89,11 +89,26 @@ const ApartmentManagement = () => {
 
   // Aidat State'leri
   const [aidatPayments, setAidatPayments] = useState({});
-  const [selectedAidatMonth, setSelectedAidatMonth] = useState(new Date().getMonth() + 1);
-  const [selectedAidatYear, setSelectedAidatYear] = useState(new Date().getFullYear());
+  const [selectedAidatMonth, setSelectedAidatMonth] = useState(
+    new Date().getMonth() + 1,
+  );
+  const [selectedAidatYear, setSelectedAidatYear] = useState(
+    new Date().getFullYear(),
+  );
   const [showMakbuzModal, setShowMakbuzModal] = useState(false);
   const [selectedMakbuz, setSelectedMakbuz] = useState(null);
   const AIDAT_AMOUNT = 750;
+
+  // Hidrofor State'leri
+  const [hidroforPayments, setHidroforPayments] = useState({});
+  const [hidroforLoading, setHidroforLoading] = useState(true);
+  const [selectedHidroforYear, setSelectedHidroforYear] = useState(
+    new Date().getFullYear(),
+  );
+  const HIDROFOR_TAKSIT_AMOUNT = 7000;
+
+  // Yazdırma State'i (hangi bölüm yazdırılacak)
+  const [printTarget, setPrintTarget] = useState(null);
 
   const floorConfig = [2, 4, 4, 4, 4, 4, 2];
 
@@ -135,15 +150,25 @@ const ApartmentManagement = () => {
   };
 
   const months = [
-    "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
-    "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+    "Ocak",
+    "Şubat",
+    "Mart",
+    "Nisan",
+    "Mayıs",
+    "Haziran",
+    "Temmuz",
+    "Ağustos",
+    "Eylül",
+    "Ekim",
+    "Kasım",
+    "Aralık",
   ];
 
   // Firebase'den işlemleri dinle
   useEffect(() => {
     const q = query(
       collection(db, "transactions"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
 
     const unsubscribe = onSnapshot(
@@ -165,7 +190,7 @@ const ApartmentManagement = () => {
       (error) => {
         console.error("Veriler alınırken hata:", error);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -193,7 +218,7 @@ const ApartmentManagement = () => {
       (error) => {
         console.error("Daire verileri alınırken hata:", error);
         setApartmentsLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -212,10 +237,51 @@ const ApartmentManagement = () => {
       },
       (error) => {
         console.error("Aidat verileri alınırken hata:", error);
-      }
+      },
     );
 
     return () => unsubscribe();
+  }, []);
+
+  // Firebase'den hidrofor ödemelerini dinle
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      doc(db, "hidroforPayments", "yearly"),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setHidroforPayments(docSnap.data());
+        } else {
+          setHidroforPayments({});
+        }
+        setHidroforLoading(false);
+      },
+      (error) => {
+        console.error("Hidrofor verileri alınırken hata:", error);
+        setHidroforLoading(false);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Yazdırma hedefi değiştiğinde body'e attribute ekle ve yazdırma diyaloğunu tetikle
+  useEffect(() => {
+    if (printTarget) {
+      document.body.setAttribute("data-print-mode", printTarget);
+      const timer = setTimeout(() => {
+        window.print();
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      document.body.removeAttribute("data-print-mode");
+    }
+  }, [printTarget]);
+
+  // Yazdırma tamamlandığında (veya iptal edildiğinde) hedefi sıfırla
+  useEffect(() => {
+    const handleAfterPrint = () => setPrintTarget(null);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
   }, []);
 
   const handleLogin = () => {
@@ -324,7 +390,7 @@ const ApartmentManagement = () => {
 
       await updateDoc(
         doc(db, "transactions", editingTransaction.id),
-        transactionData
+        transactionData,
       );
 
       setEditingTransaction(null);
@@ -340,7 +406,7 @@ const ApartmentManagement = () => {
 
   const handleDeleteTransaction = async (transactionId) => {
     const shouldDelete = window.confirm(
-      "Bu işlemi silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz."
+      "Bu işlemi silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz.",
     );
 
     if (!shouldDelete) {
@@ -369,7 +435,10 @@ const ApartmentManagement = () => {
     try {
       const updatedApartments = {
         ...apartments,
-        [selectedApartment]: [...(apartments[selectedApartment] || []), newResident.trim()],
+        [selectedApartment]: [
+          ...(apartments[selectedApartment] || []),
+          newResident.trim(),
+        ],
       };
 
       await setDoc(doc(db, "apartments", "residents"), updatedApartments);
@@ -386,11 +455,15 @@ const ApartmentManagement = () => {
   const handleRemoveResident = async (aptKey, residentIndex) => {
     if (!user?.role === "admin") return;
 
-    const shouldDelete = window.confirm("Bu sakini silmek istediğinizden emin misiniz?");
+    const shouldDelete = window.confirm(
+      "Bu sakini silmek istediğinizden emin misiniz?",
+    );
     if (!shouldDelete) return;
 
     try {
-      const updatedResidents = apartments[aptKey].filter((_, i) => i !== residentIndex);
+      const updatedResidents = apartments[aptKey].filter(
+        (_, i) => i !== residentIndex,
+      );
       const updatedApartments = {
         ...apartments,
         [aptKey]: updatedResidents,
@@ -409,7 +482,7 @@ const ApartmentManagement = () => {
     if (!user?.role === "admin") return;
 
     try {
-      const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
+      const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, "0")}`;
       const updatedPayments = {
         ...aidatPayments,
         [monthKey]: {
@@ -419,42 +492,90 @@ const ApartmentManagement = () => {
             paymentDate: new Date().toISOString(),
             amount: AIDAT_AMOUNT,
             paidBy: user.username,
-          }
-        }
+          },
+        },
       };
 
       await setDoc(doc(db, "aidatPayments", "monthly"), updatedPayments);
       showNotification(
-        paid ? "Aidat ödemesi kaydedildi!" : "Aidat ödemesi iptal edildi!", 
-        "success"
+        paid ? "Aidat ödemesi kaydedildi!" : "Aidat ödemesi iptal edildi!",
+        "success",
       );
     } catch (error) {
       console.error("Aidat kaydedilirken hata:", error);
       showNotification("Aidat kaydedilirken hata oluştu!", "error");
     }
   };
-  const handleShowMakbuz = (daireNo, residents, payment, aptKey) => {
-  const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
-  const monthPayments = aidatPayments[monthKey] || {};
-  const paymentData = monthPayments[aptKey];
-  
-  setSelectedMakbuz({
-    daireNo,
-    residents: residents.join(", ") || "Boş Daire",
-    amount: AIDAT_AMOUNT,
-    paymentDate: paymentData?.paymentDate ? new Date(paymentData.paymentDate).toLocaleDateString('tr-TR') : "-",
-    month: months[selectedAidatMonth - 1],
-    year: selectedAidatYear,
-  });
-  setShowMakbuzModal(true);
-};
 
-const printMakbuz = () => {
-  window.print();
-};
+  // Hidrofor taksit ödeme kaydet
+  const handleHidroforPayment = async (aptKey, taksit, paid) => {
+    if (user?.role !== "admin") return;
+
+    try {
+      const yearKey = `${selectedHidroforYear}`;
+      const currentYearData = hidroforPayments[yearKey] || {};
+      const currentAptData = currentYearData[aptKey] || {};
+      const updatedPayments = {
+        ...hidroforPayments,
+        [yearKey]: {
+          ...currentYearData,
+          [aptKey]: {
+            ...currentAptData,
+            [taksit]: {
+              paid,
+              paymentDate: new Date().toISOString(),
+              amount: HIDROFOR_TAKSIT_AMOUNT,
+              paidBy: user.username,
+            },
+          },
+        },
+      };
+
+      await setDoc(doc(db, "hidroforPayments", "yearly"), updatedPayments);
+      showNotification(
+        paid
+          ? "Hidrofor ödemesi kaydedildi!"
+          : "Hidrofor ödemesi iptal edildi!",
+        "success",
+      );
+    } catch (error) {
+      console.error("Hidrofor kaydedilirken hata:", error);
+      showNotification("Hidrofor kaydedilirken hata oluştu!", "error");
+    }
+  };
+
+  const handleShowMakbuz = (daireNo, residents, payment, aptKey) => {
+    const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, "0")}`;
+    const monthPayments = aidatPayments[monthKey] || {};
+    const paymentData = monthPayments[aptKey];
+
+    setSelectedMakbuz({
+      daireNo,
+      residents: residents.join(", ") || "Boş Daire",
+      amount: AIDAT_AMOUNT,
+      paymentDate: paymentData?.paymentDate
+        ? new Date(paymentData.paymentDate).toLocaleDateString("tr-TR")
+        : "-",
+      month: months[selectedAidatMonth - 1],
+      year: selectedAidatYear,
+    });
+    setShowMakbuzModal(true);
+  };
+
+  const printMakbuz = () => {
+    setPrintTarget("makbuz");
+  };
 
   const printAidatList = () => {
-    window.print();
+    setPrintTarget("aidat");
+  };
+
+  const printTransactions = () => {
+    setPrintTarget("transactions");
+  };
+
+  const printHidrofor = () => {
+    setPrintTarget("hidrofor");
   };
 
   const filteredTransactions = transactions.filter(
@@ -462,7 +583,7 @@ const printMakbuz = () => {
       t.month === selectedMonth &&
       t.year === selectedYear &&
       (t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.amount.toString().includes(searchTerm))
+        t.amount.toString().includes(searchTerm)),
   );
 
   const totalIncome = filteredTransactions
@@ -476,7 +597,7 @@ const printMakbuz = () => {
   const cumulativeTransactions = transactions.filter(
     (t) =>
       t.year < selectedYear ||
-      (t.year === selectedYear && t.month <= selectedMonth)
+      (t.year === selectedYear && t.month <= selectedMonth),
   );
 
   const cumulativeIncome = cumulativeTransactions
@@ -491,10 +612,12 @@ const printMakbuz = () => {
 
   const totalResidents = Object.values(apartments).flat().length;
   const totalApartments = 24;
-  const occupiedApartments = Object.values(apartments).filter((r) => r.length > 0).length;
+  const occupiedApartments = Object.values(apartments).filter(
+    (r) => r.length > 0,
+  ).length;
   const emptyApartments = totalApartments - occupiedApartments;
 
-  if (loading || apartmentsLoading) {
+  if (loading || apartmentsLoading || hidroforLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -507,6 +630,136 @@ const printMakbuz = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Yazdırma için genel stil: sadece seçilen bölüm yazdırılır, boş sayfa oluşmaz */}
+      <style>{`
+  @media print {
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
+
+    html,
+    body,
+    #root {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+    }
+
+    /* GENEL YAZDIRMA MODU */
+    body[data-print-mode] button,
+    body[data-print-mode] .print\\:hidden {
+      display: none !important;
+    }
+
+    /* MAKBUZ YAZDIRMA - BOŞ SAYFA ENGELİ */
+    body[data-print-mode="makbuz"] #root > div > *:not(.makbuz-modal) {
+      display: none !important;
+    }
+
+    body[data-print-mode="makbuz"] .makbuz-modal {
+      position: static !important;
+      inset: auto !important;
+      display: block !important;
+      background: white !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+
+    body[data-print-mode="makbuz"] .makbuz-modal > div {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      background: white !important;
+    }
+
+    body[data-print-mode="makbuz"] .makbuz-modal > div > :not(.makbuz-content) {
+      display: none !important;
+    }
+
+    body[data-print-mode="makbuz"] .makbuz-content {
+      display: block !important;
+      visibility: visible !important;
+      position: static !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      overflow: visible !important;
+      background: white !important;
+    }
+
+    body[data-print-mode="makbuz"] .makbuz-content * {
+      visibility: visible !important;
+    }
+
+    body[data-print-mode="makbuz"] .makbuz-content > div {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      margin: 0 !important;
+    }
+
+    /* GELİR/GİDER YAZDIRMA */
+    body[data-print-mode="transactions"] * {
+      visibility: hidden !important;
+    }
+
+    body[data-print-mode="transactions"] .transactions-print-content,
+    body[data-print-mode="transactions"] .transactions-print-content * {
+      visibility: visible !important;
+    }
+
+    body[data-print-mode="transactions"] .transactions-print-content {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+    }
+
+    /* AİDAT LİSTESİ YAZDIRMA */
+    body[data-print-mode="aidat"] * {
+      visibility: hidden !important;
+    }
+
+    body[data-print-mode="aidat"] .aidat-print-content,
+    body[data-print-mode="aidat"] .aidat-print-content * {
+      visibility: visible !important;
+    }
+
+    body[data-print-mode="aidat"] .aidat-print-content {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+    }
+
+    /* HİDROFOR YAZDIRMA */
+    body[data-print-mode="hidrofor"] * {
+      visibility: hidden !important;
+    }
+
+    body[data-print-mode="hidrofor"] .hidrofor-print-content,
+    body[data-print-mode="hidrofor"] .hidrofor-print-content * {
+      visibility: visible !important;
+    }
+
+    body[data-print-mode="hidrofor"] .hidrofor-print-content {
+      position: absolute !important;
+      left: 0 !important;
+      top: 0 !important;
+      width: 100% !important;
+    }
+  }
+`}</style>
+
       {/* Notifications Container */}
       <div className="fixed top-4 right-4 z-[9999] space-y-2">
         {notifications.map((notification) => (
@@ -516,10 +769,10 @@ const printMakbuz = () => {
               notification.type === "success"
                 ? "border-green-500"
                 : notification.type === "error"
-                ? "border-red-500"
-                : notification.type === "warning"
-                ? "border-yellow-500"
-                : "border-blue-500"
+                  ? "border-red-500"
+                  : notification.type === "warning"
+                    ? "border-yellow-500"
+                    : "border-blue-500"
             }`}
           >
             <div className="flex-shrink-0 mr-3">
@@ -542,10 +795,10 @@ const printMakbuz = () => {
                   notification.type === "success"
                     ? "text-green-800"
                     : notification.type === "error"
-                    ? "text-red-800"
-                    : notification.type === "warning"
-                    ? "text-yellow-800"
-                    : "text-blue-800"
+                      ? "text-red-800"
+                      : notification.type === "warning"
+                        ? "text-yellow-800"
+                        : "text-blue-800"
                 }`}
               >
                 {notification.message}
@@ -605,7 +858,7 @@ const printMakbuz = () => {
 
       {/* Tab Navigation */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-        <div className="bg-white rounded-lg shadow-md p-1 inline-flex">
+        <div className="bg-white rounded-lg shadow-md p-1 inline-flex flex-wrap">
           <button
             onClick={() => setActiveTab("transactions")}
             className={`flex items-center px-4 py-2 rounded-md transition-colors ${
@@ -638,6 +891,17 @@ const printMakbuz = () => {
           >
             <DollarSign className="h-4 w-4 mr-2" />
             Aidat Takibi
+          </button>
+          <button
+            onClick={() => setActiveTab("hidrofor")}
+            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
+              activeTab === "hidrofor"
+                ? "bg-indigo-600 text-white"
+                : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Droplets className="h-4 w-4 mr-2" />
+            Hidrofor
           </button>
         </div>
       </div>
@@ -757,7 +1021,9 @@ const printMakbuz = () => {
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
                       <span className="text-sm font-semibold">VAKIFBANK</span>
                       <button
-                        onClick={() => copyToClipboard("VAKIFBANK", "Banka adı")}
+                        onClick={() =>
+                          copyToClipboard("VAKIFBANK", "Banka adı")
+                        }
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
                       >
@@ -776,7 +1042,10 @@ const printMakbuz = () => {
                       </span>
                       <button
                         onClick={() =>
-                          copyToClipboard("TR76 0001 5001 5800 7366 4929 51", "IBAN")
+                          copyToClipboard(
+                            "TR76 0001 5001 5800 7366 4929 51",
+                            "IBAN",
+                          )
                         }
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
@@ -791,9 +1060,13 @@ const printMakbuz = () => {
                       Hesap Adı
                     </label>
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
-                      <span className="text-sm font-semibold">NECATİ ARSLAN</span>
+                      <span className="text-sm font-semibold">
+                        NECATİ ARSLAN
+                      </span>
                       <button
-                        onClick={() => copyToClipboard("NECATİ ARSLAN", "Hesap adı")}
+                        onClick={() =>
+                          copyToClipboard("NECATİ ARSLAN", "Hesap adı")
+                        }
                         className="text-blue-600 hover:text-blue-800 p-1"
                         title="Kopyala"
                       >
@@ -896,7 +1169,7 @@ const printMakbuz = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-         {activeTab === "transactions" ? (
+        {activeTab === "transactions" ? (
           <>
             {/* Controls */}
             <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -908,7 +1181,9 @@ const printMakbuz = () => {
                     </label>
                     <select
                       value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                      onChange={(e) =>
+                        setSelectedMonth(parseInt(e.target.value))
+                      }
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       {months.map((month, index) => (
@@ -925,7 +1200,9 @@ const printMakbuz = () => {
                     </label>
                     <select
                       value={selectedYear}
-                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      onChange={(e) =>
+                        setSelectedYear(parseInt(e.target.value))
+                      }
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value={2025}>2025</option>
@@ -947,175 +1224,217 @@ const printMakbuz = () => {
                   />
                 </div>
 
-                {user?.role === "admin" && (
+                <div className="mt-4 sm:mt-0 flex items-center gap-2">
                   <button
-                    onClick={() => setShowAddForm(true)}
-                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    onClick={printTransactions}
+                    className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                   >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Yeni Kayıt
+                    <Printer className="h-4 w-4 mr-2" />
+                    Yazdır
                   </button>
-                )}
+                  {user?.role === "admin" && (
+                    <button
+                      onClick={() => setShowAddForm(true)}
+                      className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Yeni Kayıt
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Toplam Gelir
-                </h3>
-                <p className="text-3xl font-bold text-green-600">
-                  ₺{totalIncome.toLocaleString("tr-TR")}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {filteredTransactions.filter((t) => t.type === "income").length}{" "}
-                  işlem
-                </p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Toplam Gider
-                </h3>
-                <p className="text-3xl font-bold text-red-600">
-                  ₺{totalExpense.toLocaleString("tr-TR")}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {filteredTransactions.filter((t) => t.type === "expense").length}{" "}
-                  işlem
-                </p>
-              </div>
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Net Tutar
-                </h3>
-                <p
-                  className={`text-3xl font-bold ${
-                    netTotal >= 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  ₺{netTotal.toLocaleString("tr-TR")}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  {netTotal >= 0 ? "Pozitif bakiye" : "Negatif bakiye"}
-                </p>
-              </div>
-            </div>
-
-            {/* Transactions List */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="px-6 py-4 border-b">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {months[selectedMonth - 1]} {selectedYear} - İşlemler
+            <div className="transactions-print-content">
+              {/* Yazdırma başlığı (sadece yazdırırken görünür) */}
+              <div className="hidden print:block mb-6 text-center">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  İdris Bey Apartmanı
+                </h1>
+                <h2 className="text-xl text-gray-700">
+                  {months[selectedMonth - 1]} {selectedYear} - Gelir Gider
+                  Listesi
                 </h2>
+                <p className="text-sm text-gray-600 mt-2">
+                  Yazdırma Tarihi: {new Date().toLocaleDateString("tr-TR")}
+                </p>
               </div>
-              <div className="overflow-x-auto">
-                {filteredTransactions.length === 0 ? (
-                  <div className="p-8 text-center text-gray-500">
-                    <p className="text-lg mb-2">Bu ay için kayıt bulunamadı.</p>
-                    {user?.role === "admin" && (
-                      <button
-                        onClick={() => setShowAddForm(true)}
-                        className="text-indigo-600 hover:text-indigo-800 font-medium"
-                      >
-                        İlk kaydı eklemek ister misiniz?
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tarih
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Açıklama
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tip
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tutar
-                        </th>
-                        {user?.role === "admin" && (
-                          <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            İşlemler
+
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 print:mb-4">
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Toplam Gelir
+                  </h3>
+                  <p className="text-3xl font-bold text-green-600">
+                    ₺{totalIncome.toLocaleString("tr-TR")}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {
+                      filteredTransactions.filter((t) => t.type === "income")
+                        .length
+                    }{" "}
+                    işlem
+                  </p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Toplam Gider
+                  </h3>
+                  <p className="text-3xl font-bold text-red-600">
+                    ₺{totalExpense.toLocaleString("tr-TR")}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {
+                      filteredTransactions.filter((t) => t.type === "expense")
+                        .length
+                    }{" "}
+                    işlem
+                  </p>
+                </div>
+                <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Net Tutar
+                  </h3>
+                  <p
+                    className={`text-3xl font-bold ${
+                      netTotal >= 0 ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    ₺{netTotal.toLocaleString("tr-TR")}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {netTotal >= 0 ? "Pozitif bakiye" : "Negatif bakiye"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Transactions List */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="px-6 py-4 border-b print:border-b-2">
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {months[selectedMonth - 1]} {selectedYear} - İşlemler
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  {filteredTransactions.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500">
+                      <p className="text-lg mb-2">
+                        Bu ay için kayıt bulunamadı.
+                      </p>
+                      {user?.role === "admin" && (
+                        <button
+                          onClick={() => setShowAddForm(true)}
+                          className="text-indigo-600 hover:text-indigo-800 font-medium"
+                        >
+                          İlk kaydı eklemek ister misiniz?
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <table className="w-full">
+                      <thead className="bg-gray-50 print:bg-gray-100">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tarih
                           </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(transaction.date).toLocaleDateString("tr-TR")}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {transaction.description}
-                            {transaction.addedBy && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                Ekleyen: {transaction.addedBy}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                transaction.type === "income"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {transaction.type === "income" ? "Gelir" : "Gider"}
-                            </span>
-                          </td>
-                          <td
-                            className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                              transaction.type === "income"
-                                ? "text-green-600"
-                                : "text-red-600"
-                            }`}
-                          >
-                            {transaction.type === "income" ? "+" : "-"}₺
-                            {transaction.amount.toLocaleString("tr-TR")}
-                          </td>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Açıklama
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tip
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Tutar
+                          </th>
                           {user?.role === "admin" && (
-                            <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                              <div className="flex items-center justify-center space-x-2">
-                                <button
-                                  onClick={() => handleEditTransaction(transaction)}
-                                  className="text-indigo-600 hover:text-indigo-900 p-1 rounded transition-colors"
-                                  title="Düzenle"
-                                >
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleDeleteTransaction(transaction.id)
-                                  }
-                                  disabled={deleting === transaction.id}
-                                  className="text-red-600 hover:text-red-900 p-1 rounded transition-colors disabled:opacity-50"
-                                  title="Sil"
-                                >
-                                  {deleting === transaction.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                </button>
-                              </div>
-                            </td>
+                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:hidden">
+                              İşlemler
+                            </th>
                           )}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {filteredTransactions.map((transaction) => (
+                          <tr
+                            key={transaction.id}
+                            className="hover:bg-gray-50 print:hover:bg-white"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(transaction.date).toLocaleDateString(
+                                "tr-TR",
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {transaction.description}
+                              {transaction.addedBy && (
+                                <p className="text-xs text-gray-500 mt-1 print:hidden">
+                                  Ekleyen: {transaction.addedBy}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  transaction.type === "income"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {transaction.type === "income"
+                                  ? "Gelir"
+                                  : "Gider"}
+                              </span>
+                            </td>
+                            <td
+                              className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
+                                transaction.type === "income"
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }`}
+                            >
+                              {transaction.type === "income" ? "+" : "-"}₺
+                              {transaction.amount.toLocaleString("tr-TR")}
+                            </td>
+                            {user?.role === "admin" && (
+                              <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium print:hidden">
+                                <div className="flex items-center justify-center space-x-2">
+                                  <button
+                                    onClick={() =>
+                                      handleEditTransaction(transaction)
+                                    }
+                                    className="text-indigo-600 hover:text-indigo-900 p-1 rounded transition-colors"
+                                    title="Düzenle"
+                                  >
+                                    <Edit2 className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteTransaction(transaction.id)
+                                    }
+                                    disabled={deleting === transaction.id}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded transition-colors disabled:opacity-50"
+                                    title="Sil"
+                                  >
+                                    {deleting === transaction.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
               </div>
             </div>
           </>
-      ) : activeTab === "floorplan" ? (
+        ) : activeTab === "floorplan" ? (
           /* Kat Planı Görünümü */
           <div>
             {/* Admin için Sakin Ekleme Paneli */}
@@ -1140,7 +1459,8 @@ const printMakbuz = () => {
                           key={`${floor}-${aptIdx + 1}`}
                           value={`${floor}-${aptIdx + 1}`}
                         >
-                          {getFloorLabel(floor)} - Daire {getDaireNo(floor, aptIdx + 1)}
+                          {getFloorLabel(floor)} - Daire{" "}
+                          {getDaireNo(floor, aptIdx + 1)}
                         </option>
                       ));
                     })}
@@ -1190,7 +1510,9 @@ const printMakbuz = () => {
                   <Users className="h-8 w-8 text-green-500 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">Toplam Sakin</p>
-                    <p className="text-2xl font-bold text-gray-900">{totalResidents}</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {totalResidents}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1199,7 +1521,9 @@ const printMakbuz = () => {
                   <Home className="h-8 w-8 text-orange-500 mr-3" />
                   <div>
                     <p className="text-sm text-gray-500">Boş Daire</p>
-                    <p className="text-2xl font-bold text-gray-900">{emptyApartments}</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {emptyApartments}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1242,7 +1566,10 @@ const printMakbuz = () => {
                         return (
                           <div
                             key={aptKey}
-                            onClick={() => user?.role === "admin" && setSelectedApartment(aptKey)}
+                            onClick={() =>
+                              user?.role === "admin" &&
+                              setSelectedApartment(aptKey)
+                            }
                             className={`
                               bg-gradient-to-b from-gray-100 to-gray-200 
                               rounded-lg p-3 min-h-32 
@@ -1357,12 +1684,13 @@ const printMakbuz = () => {
               <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-700 flex items-center">
                   <Info className="h-4 w-4 mr-2" />
-                  Sakin eklemek veya silmek için yönetici girişi yapmanız gerekmektedir.
+                  Sakin eklemek veya silmek için yönetici girişi yapmanız
+                  gerekmektedir.
                 </p>
               </div>
             )}
           </div>
-      ) : activeTab === "aidat" ? (
+        ) : activeTab === "aidat" ? (
           /* Aidat Takibi Görünümü */
           <div>
             {/* Filtreler ve Yazdır */}
@@ -1375,7 +1703,9 @@ const printMakbuz = () => {
                     </label>
                     <select
                       value={selectedAidatMonth}
-                      onChange={(e) => setSelectedAidatMonth(parseInt(e.target.value))}
+                      onChange={(e) =>
+                        setSelectedAidatMonth(parseInt(e.target.value))
+                      }
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       {months.map((month, index) => (
@@ -1391,7 +1721,9 @@ const printMakbuz = () => {
                     </label>
                     <select
                       value={selectedAidatYear}
-                      onChange={(e) => setSelectedAidatYear(parseInt(e.target.value))}
+                      onChange={(e) =>
+                        setSelectedAidatYear(parseInt(e.target.value))
+                      }
                       className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                       <option value={2025}>2025</option>
@@ -1400,197 +1732,244 @@ const printMakbuz = () => {
                     </select>
                   </div>
                 </div>
-                
-               
+
+                <button
+                  onClick={printAidatList}
+                  className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Yazdır
+                </button>
               </div>
             </div>
 
-            {/* Aidat Özet Kartları */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:mb-4">
-              {(() => {
-                const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
-                const monthPayments = aidatPayments[monthKey] || {};
-                const paidCount = Object.values(monthPayments).filter(p => p.paid).length;
-                const unpaidCount = 24 - paidCount;
-                const totalCollected = paidCount * AIDAT_AMOUNT;
-                const totalPending = unpaidCount * AIDAT_AMOUNT;
+            <div className="aidat-print-content">
+              {/* Aidat Özet Kartları */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:mb-4">
+                {(() => {
+                  const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, "0")}`;
+                  const monthPayments = aidatPayments[monthKey] || {};
+                  const paidCount = Object.values(monthPayments).filter(
+                    (p) => p.paid,
+                  ).length;
+                  const unpaidCount = 24 - paidCount;
+                  const totalCollected = paidCount * AIDAT_AMOUNT;
+                  const totalPending = unpaidCount * AIDAT_AMOUNT;
 
-                return (
-                  <>
-                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
-                        <div>
-                          <p className="text-sm text-gray-500">Ödenen</p>
-                          <p className="text-2xl font-bold text-gray-900">{paidCount}/24</p>
+                  return (
+                    <>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">Ödenen</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              {paidCount}/24
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-red-500">
-                      <div className="flex items-center">
-                        <XCircle className="h-8 w-8 text-red-500 mr-3" />
-                        <div>
-                          <p className="text-sm text-gray-500">Ödenmedi</p>
-                          <p className="text-2xl font-bold text-gray-900">{unpaidCount}/24</p>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-red-500">
+                        <div className="flex items-center">
+                          <XCircle className="h-8 w-8 text-red-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">Ödenmedi</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              {unpaidCount}/24
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
-                      <div className="flex items-center">
-                        <DollarSign className="h-8 w-8 text-blue-500 mr-3" />
-                        <div>
-                          <p className="text-sm text-gray-500">Toplanan</p>
-                          <p className="text-2xl font-bold text-gray-900">₺{totalCollected.toLocaleString('tr-TR')}</p>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+                        <div className="flex items-center">
+                          <DollarSign className="h-8 w-8 text-blue-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">Toplanan</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              ₺{totalCollected.toLocaleString("tr-TR")}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
-                      <div className="flex items-center">
-                        <DollarSign className="h-8 w-8 text-orange-500 mr-3" />
-                        <div>
-                          <p className="text-sm text-gray-500">Bekleyen</p>
-                          <p className="text-2xl font-bold text-gray-900">₺{totalPending.toLocaleString('tr-TR')}</p>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+                        <div className="flex items-center">
+                          <DollarSign className="h-8 w-8 text-orange-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">Bekleyen</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              ₺{totalPending.toLocaleString("tr-TR")}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
+                    </>
+                  );
+                })()}
+              </div>
 
-            {/* Aidat Listesi Başlık (Yazdırma için) */}
-            <div className="hidden print:block mb-6 text-center">
-              <h1 className="text-2xl font-bold text-gray-900">İdris Bey Apartmanı</h1>
-              <h2 className="text-xl text-gray-700">
-                {months[selectedAidatMonth - 1]} {selectedAidatYear} - Aidat Listesi
-              </h2>
-              <p className="text-sm text-gray-600 mt-2">
-                Yazdırma Tarihi: {new Date().toLocaleDateString('tr-TR')}
-              </p>
-            </div>
-
-            {/* Aidat Tablosu */}
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="px-6 py-4 border-b print:border-b-2">
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <DollarSign className="h-5 w-5 mr-2" />
-                  {months[selectedAidatMonth - 1]} {selectedAidatYear} - Aidat Listesi
+              {/* Aidat Listesi Başlık (Yazdırma için) */}
+              <div className="hidden print:block mb-6 text-center">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  İdris Bey Apartmanı
+                </h1>
+                <h2 className="text-xl text-gray-700">
+                  {months[selectedAidatMonth - 1]} {selectedAidatYear} - Aidat
+                  Listesi
                 </h2>
+                <p className="text-sm text-gray-600 mt-2">
+                  Yazdırma Tarihi: {new Date().toLocaleDateString("tr-TR")}
+                </p>
               </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 print:bg-gray-100">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Daire No
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Sakin Adı
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Aidat Tutarı
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ödeme Tarihi
-                      </th>
-                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:hidden">
-                        İşlemler
-                      </th>
-                      <th className="hidden print:table-cell px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Ödendi/Ödenmedi
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(() => {
-                      const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, '0')}`;
-                      const monthPayments = aidatPayments[monthKey] || {};
-                      const allApartments = [];
-                      
-                      // Tüm daireleri sıralı bir şekilde oluştur
-                      for (let floor = 1; floor <= 7; floor++) {
-                        const apartmentCount = floorConfig[floor - 1];
-                        for (let apt = 1; apt <= apartmentCount; apt++) {
-                          const aptKey = `${floor}-${apt}`;
-                          const daireNo = getDaireNo(floor, apt);
-                          const residents = apartments[aptKey] || [];
-                          const payment = monthPayments[aptKey];
-                          
-                          allApartments.push({
-                            daireNo,
-                            aptKey,
-                            residents,
-                            payment,
-                          });
-                        }
-                      }
 
-                      return allApartments.map(({ daireNo, aptKey, residents, payment }) => (
-                        <tr key={aptKey} className="hover:bg-gray-50 print:hover:bg-white">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            Daire {daireNo}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900">
-                            {residents.length > 0 ? residents.join(", ") : (
-                              <span className="text-gray-400 italic">Boş</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
-                            ₺{AIDAT_AMOUNT.toLocaleString('tr-TR')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
-                            {payment?.paid && payment?.paymentDate ? (
-                              <div className="flex items-center justify-center">
-                                <Calendar className="h-4 w-4 mr-1 text-green-600" />
-                                {new Date(payment.paymentDate).toLocaleDateString('tr-TR')}
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
-  <div className="flex items-center justify-center space-x-3">
-    {user?.role === "admin" && (
-      <input
-        type="checkbox"
-        checked={payment?.paid || false}
-        onChange={(e) => handleAidatPayment(aptKey, e.target.checked)}
-        className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-      />
-    )}
-    
-    {!user?.role && (
-      <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-        payment?.paid
-          ? "bg-green-100 text-green-800"
-          : "bg-red-100 text-red-800"
-      }`}>
-        {payment?.paid ? "Ödendi" : "Ödenmedi"}
-      </span>
-    )}
-    
-    {payment?.paid && (
-      <button
-        onClick={() => handleShowMakbuz(daireNo, residents, payment, aptKey)}
-        className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
-        title="Makbuz Görüntüle"
-      >
-        <Eye className="h-3.5 w-3.5 mr-1" />
-        Makbuz
-      </button>
-    )}
-  </div>
-</td>
-                        
-                          <td className="hidden print:table-cell px-6 py-4 whitespace-nowrap text-center text-sm">
-                            {payment?.paid ? "✓ Ödendi" : "✗ Ödenmedi"}
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
+              {/* Aidat Tablosu */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="px-6 py-4 border-b print:border-b-2">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <DollarSign className="h-5 w-5 mr-2" />
+                    {months[selectedAidatMonth - 1]} {selectedAidatYear} - Aidat
+                    Listesi
+                  </h2>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 print:bg-gray-100">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Daire No
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Sakin Adı
+                        </th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Aidat Tutarı
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Ödeme Tarihi
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider print:hidden">
+                          İşlemler
+                        </th>
+                        <th className="hidden print:table-cell px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Ödendi/Ödenmedi
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(() => {
+                        const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, "0")}`;
+                        const monthPayments = aidatPayments[monthKey] || {};
+                        const allApartments = [];
+
+                        // Tüm daireleri sıralı bir şekilde oluştur
+                        for (let floor = 1; floor <= 7; floor++) {
+                          const apartmentCount = floorConfig[floor - 1];
+                          for (let apt = 1; apt <= apartmentCount; apt++) {
+                            const aptKey = `${floor}-${apt}`;
+                            const daireNo = getDaireNo(floor, apt);
+                            const residents = apartments[aptKey] || [];
+                            const payment = monthPayments[aptKey];
+
+                            allApartments.push({
+                              daireNo,
+                              aptKey,
+                              residents,
+                              payment,
+                            });
+                          }
+                        }
+
+                        return allApartments.map(
+                          ({ daireNo, aptKey, residents, payment }) => (
+                            <tr
+                              key={aptKey}
+                              className="hover:bg-gray-50 print:hover:bg-white"
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                Daire {daireNo}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-900">
+                                {residents.length > 0 ? (
+                                  residents.join(", ")
+                                ) : (
+                                  <span className="text-gray-400 italic">
+                                    Boş
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
+                                ₺{AIDAT_AMOUNT.toLocaleString("tr-TR")}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                                {payment?.paid && payment?.paymentDate ? (
+                                  <div className="flex items-center justify-center">
+                                    <Calendar className="h-4 w-4 mr-1 text-green-600" />
+                                    {new Date(
+                                      payment.paymentDate,
+                                    ).toLocaleDateString("tr-TR")}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
+                                <div className="flex items-center justify-center space-x-3">
+                                  {user?.role === "admin" && (
+                                    <input
+                                      type="checkbox"
+                                      checked={payment?.paid || false}
+                                      onChange={(e) =>
+                                        handleAidatPayment(
+                                          aptKey,
+                                          e.target.checked,
+                                        )
+                                      }
+                                      className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                                    />
+                                  )}
+
+                                  {!user?.role && (
+                                    <span
+                                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                                        payment?.paid
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-red-100 text-red-800"
+                                      }`}
+                                    >
+                                      {payment?.paid ? "Ödendi" : "Ödenmedi"}
+                                    </span>
+                                  )}
+
+                                  {payment?.paid && (
+                                    <button
+                                      onClick={() =>
+                                        handleShowMakbuz(
+                                          daireNo,
+                                          residents,
+                                          payment,
+                                          aptKey,
+                                        )
+                                      }
+                                      className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
+                                      title="Makbuz Görüntüle"
+                                    >
+                                      <Eye className="h-3.5 w-3.5 mr-1" />
+                                      Makbuz
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+
+                              <td className="hidden print:table-cell px-6 py-4 whitespace-nowrap text-center text-sm">
+                                {payment?.paid ? "✓ Ödendi" : "✗ Ödenmedi"}
+                              </td>
+                            </tr>
+                          ),
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -1599,7 +1978,302 @@ const printMakbuz = () => {
               <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 print:hidden">
                 <p className="text-sm text-blue-700 flex items-center">
                   <Info className="h-4 w-4 mr-2" />
-                  Aidat ödemelerini işaretlemek için yönetici girişi yapmanız gerekmektedir.
+                  Aidat ödemelerini işaretlemek için yönetici girişi yapmanız
+                  gerekmektedir.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : activeTab === "hidrofor" ? (
+          /* Hidrofor Takibi Görünümü */
+          <div>
+            {/* Filtreler ve Yazdır */}
+            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Yıl
+                  </label>
+                  <select
+                    value={selectedHidroforYear}
+                    onChange={(e) =>
+                      setSelectedHidroforYear(parseInt(e.target.value))
+                    }
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value={2025}>2025</option>
+                    <option value={2026}>2026</option>
+                    <option value={2027}>2027</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={printHidrofor}
+                  className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Yazdır
+                </button>
+              </div>
+            </div>
+
+            <div className="hidrofor-print-content">
+              {/* Hidrofor Özet Kartları */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 print:mb-4">
+                {(() => {
+                  const yearKey = `${selectedHidroforYear}`;
+                  const yearData = hidroforPayments[yearKey] || {};
+                  const taksit1PaidCount = Object.values(yearData).filter(
+                    (p) => p.taksit1?.paid,
+                  ).length;
+                  const taksit2PaidCount = Object.values(yearData).filter(
+                    (p) => p.taksit2?.paid,
+                  ).length;
+                  const totalCollected =
+                    (taksit1PaidCount + taksit2PaidCount) *
+                    HIDROFOR_TAKSIT_AMOUNT;
+                  const totalPending =
+                    (48 - taksit1PaidCount - taksit2PaidCount) *
+                    HIDROFOR_TAKSIT_AMOUNT;
+
+                  return (
+                    <>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-8 w-8 text-blue-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">
+                              1. Taksit Ödenen
+                            </p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              {taksit1PaidCount}/24
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-indigo-500">
+                        <div className="flex items-center">
+                          <CheckCircle className="h-8 w-8 text-indigo-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">
+                              2. Taksit Ödenen
+                            </p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              {taksit2PaidCount}/24
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+                        <div className="flex items-center">
+                          <DollarSign className="h-8 w-8 text-green-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">Toplanan</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              ₺{totalCollected.toLocaleString("tr-TR")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+                        <div className="flex items-center">
+                          <DollarSign className="h-8 w-8 text-orange-500 mr-3" />
+                          <div>
+                            <p className="text-sm text-gray-500">Bekleyen</p>
+                            <p className="text-2xl font-bold text-gray-900">
+                              ₺{totalPending.toLocaleString("tr-TR")}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* Yazdırma başlığı (sadece yazdırırken görünür) */}
+              <div className="hidden print:block mb-6 text-center">
+                <h1 className="text-2xl font-bold text-gray-900">
+                  İdris Bey Apartmanı
+                </h1>
+                <h2 className="text-xl text-gray-700">
+                  {selectedHidroforYear} - Hidrofor Ödeme Listesi
+                </h2>
+                <p className="text-sm text-gray-600 mt-2">
+                  Yazdırma Tarihi: {new Date().toLocaleDateString("tr-TR")}
+                </p>
+              </div>
+
+              {/* Hidrofor Tablosu */}
+              <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="px-6 py-4 border-b print:border-b-2">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <Droplets className="h-5 w-5 mr-2" />
+                    {selectedHidroforYear} - Hidrofor Ödeme Listesi
+                  </h2>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 print:bg-gray-100">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Daire No
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Sakin Adı
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          1. Taksit (₺{HIDROFOR_TAKSIT_AMOUNT})
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          2. Taksit (₺{HIDROFOR_TAKSIT_AMOUNT})
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(() => {
+                        const yearKey = `${selectedHidroforYear}`;
+                        const yearData = hidroforPayments[yearKey] || {};
+                        const allApartments = [];
+
+                        for (let floor = 1; floor <= 7; floor++) {
+                          const apartmentCount = floorConfig[floor - 1];
+                          for (let apt = 1; apt <= apartmentCount; apt++) {
+                            const aptKey = `${floor}-${apt}`;
+                            const daireNo = getDaireNo(floor, apt);
+                            const residents = apartments[aptKey] || [];
+                            const payment = yearData[aptKey];
+                            allApartments.push({
+                              daireNo,
+                              aptKey,
+                              residents,
+                              payment,
+                            });
+                          }
+                        }
+
+                        return allApartments.map(
+                          ({ daireNo, aptKey, residents, payment }) => (
+                            <tr
+                              key={aptKey}
+                              className="hover:bg-gray-50 print:hover:bg-white"
+                            >
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                Daire {daireNo}
+                              </td>
+                              <td className="px-6 py-4 text-sm text-gray-900">
+                                {residents.length > 0 ? (
+                                  residents.join(", ")
+                                ) : (
+                                  <span className="text-gray-400 italic">
+                                    Boş
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  {user?.role === "admin" ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={payment?.taksit1?.paid || false}
+                                      onChange={(e) =>
+                                        handleHidroforPayment(
+                                          aptKey,
+                                          "taksit1",
+                                          e.target.checked,
+                                        )
+                                      }
+                                      className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer print:hidden"
+                                    />
+                                  ) : (
+                                    <span
+                                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full print:hidden ${
+                                        payment?.taksit1?.paid
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-red-100 text-red-800"
+                                      }`}
+                                    >
+                                      {payment?.taksit1?.paid
+                                        ? "Ödendi"
+                                        : "Ödenmedi"}
+                                    </span>
+                                  )}
+                                  <span className="hidden print:inline text-xs">
+                                    {payment?.taksit1?.paid
+                                      ? "✓ Ödendi"
+                                      : "✗ Ödenmedi"}
+                                  </span>
+                                  {payment?.taksit1?.paid &&
+                                    payment?.taksit1?.paymentDate && (
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(
+                                          payment.taksit1.paymentDate,
+                                        ).toLocaleDateString("tr-TR")}
+                                      </span>
+                                    )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  {user?.role === "admin" ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={payment?.taksit2?.paid || false}
+                                      onChange={(e) =>
+                                        handleHidroforPayment(
+                                          aptKey,
+                                          "taksit2",
+                                          e.target.checked,
+                                        )
+                                      }
+                                      className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer print:hidden"
+                                    />
+                                  ) : (
+                                    <span
+                                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full print:hidden ${
+                                        payment?.taksit2?.paid
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-red-100 text-red-800"
+                                      }`}
+                                    >
+                                      {payment?.taksit2?.paid
+                                        ? "Ödendi"
+                                        : "Ödenmedi"}
+                                    </span>
+                                  )}
+                                  <span className="hidden print:inline text-xs">
+                                    {payment?.taksit2?.paid
+                                      ? "✓ Ödendi"
+                                      : "✗ Ödenmedi"}
+                                  </span>
+                                  {payment?.taksit2?.paid &&
+                                    payment?.taksit2?.paymentDate && (
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(
+                                          payment.taksit2.paymentDate,
+                                        ).toLocaleDateString("tr-TR")}
+                                      </span>
+                                    )}
+                                </div>
+                              </td>
+                            </tr>
+                          ),
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Bilgi Notu */}
+            {!user && (
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 print:hidden">
+                <p className="text-sm text-blue-700 flex items-center">
+                  <Info className="h-4 w-4 mr-2" />
+                  Hidrofor ödemelerini işaretlemek için yönetici girişi yapmanız
+                  gerekmektedir.
                 </p>
               </div>
             )}
@@ -1819,13 +2493,14 @@ const printMakbuz = () => {
         </div>
       )}
       {/* Makbuz Modal */}
-{/* Makbuz Modal */}
       {showMakbuzModal && selectedMakbuz && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="makbuz-modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-lg w-full max-w-2xl my-8">
             {/* Modal Header - Always Visible */}
             <div className="flex items-center justify-between p-4 border-b bg-gray-50 sticky top-0 z-10">
-              <h2 className="text-lg font-semibold text-gray-900">Tahsilat Makbuzu</h2>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Tahsilat Makbuzu
+              </h2>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={printMakbuz}
@@ -1848,56 +2523,88 @@ const printMakbuz = () => {
               <div className="border-4 border-gray-800 rounded-lg p-4 sm:p-6 bg-white">
                 {/* Header */}
                 <div className="text-center mb-4 sm:mb-6 border-b-2 border-gray-300 pb-3 sm:pb-4">
-                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">APARTMAN</h1>
-                  <h2 className="text-lg sm:text-xl font-semibold text-gray-700">TAHSİLAT MAKBUZU</h2>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
+                    APARTMAN
+                  </h1>
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-700">
+                    TAHSİLAT MAKBUZU
+                  </h2>
                 </div>
 
                 {/* Info Section */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
                   <div>
                     <div className="mb-2 sm:mb-3">
-                      <label className="text-xs sm:text-sm text-gray-600">Ödeme Yapanın</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Ödeme Yapanın
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.residents}</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          {selectedMakbuz.residents}
+                        </span>
                       </div>
                     </div>
                     <div className="mb-2 sm:mb-3">
-                      <label className="text-xs sm:text-sm text-gray-600">Adı Soyadı</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Adı Soyadı
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.residents}</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          {selectedMakbuz.residents}
+                        </span>
                       </div>
                     </div>
                     <div className="mb-2 sm:mb-3">
-                      <label className="text-xs sm:text-sm text-gray-600">Apartman Adı</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Apartman Adı
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">İdris Bey Apartmanı</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          İdris Bey Apartmanı
+                        </span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs sm:text-sm text-gray-600">Daire No</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Daire No
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">Daire {selectedMakbuz.daireNo}</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          Daire {selectedMakbuz.daireNo}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="text-left sm:text-right">
                     <div className="mb-2 sm:mb-3">
-                      <label className="text-xs sm:text-sm text-gray-600">Seri No</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Seri No
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">A-{selectedMakbuz.daireNo.toString().padStart(3, '0')}</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          A-{selectedMakbuz.daireNo.toString().padStart(3, "0")}
+                        </span>
                       </div>
                     </div>
                     <div className="mb-2 sm:mb-3">
-                      <label className="text-xs sm:text-sm text-gray-600">Sıra No</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Sıra No
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.daireNo.toString().padStart(4, '0')}</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          {selectedMakbuz.daireNo.toString().padStart(4, "0")}
+                        </span>
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs sm:text-sm text-gray-600">Tarih</label>
+                      <label className="text-xs sm:text-sm text-gray-600">
+                        Tarih
+                      </label>
                       <div className="border-b border-dotted border-gray-400 pb-1">
-                        <span className="font-semibold text-sm sm:text-base">{selectedMakbuz.paymentDate}</span>
+                        <span className="font-semibold text-sm sm:text-base">
+                          {selectedMakbuz.paymentDate}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -1914,7 +2621,8 @@ const printMakbuz = () => {
                         Ay ve Yıl
                       </div>
                       <div className="col-span-3 p-2 text-center font-semibold text-xs sm:text-sm">
-                        TUTAR<br/>₺
+                        TUTAR
+                        <br />₺
                       </div>
                     </div>
                     <div className="grid grid-cols-12 border-b border-gray-800">
@@ -1926,17 +2634,23 @@ const printMakbuz = () => {
                       </div>
                       <div className="col-span-3 p-2"></div>
                     </div>
-                    
+
                     {/* Data Row */}
                     <div className="grid grid-cols-12 min-h-[80px] sm:min-h-[120px]">
                       <div className="col-span-6 border-r border-gray-800 p-2 sm:p-3">
-                        <div className="font-semibold text-base sm:text-lg">Aidat</div>
+                        <div className="font-semibold text-base sm:text-lg">
+                          Aidat
+                        </div>
                       </div>
                       <div className="col-span-3 border-r border-gray-800 p-2 sm:p-3 text-center">
-                        <div className="font-semibold text-sm sm:text-base">{selectedMakbuz.month} {selectedMakbuz.year}</div>
+                        <div className="font-semibold text-sm sm:text-base">
+                          {selectedMakbuz.month} {selectedMakbuz.year}
+                        </div>
                       </div>
                       <div className="col-span-3 p-2 sm:p-3 text-right">
-                        <div className="font-bold text-base sm:text-lg">₺{selectedMakbuz.amount.toLocaleString('tr-TR')}</div>
+                        <div className="font-bold text-base sm:text-lg">
+                          ₺{selectedMakbuz.amount.toLocaleString("tr-TR")}
+                        </div>
                       </div>
                     </div>
 
@@ -1946,7 +2660,7 @@ const printMakbuz = () => {
                         Toplam
                       </div>
                       <div className="col-span-3 p-2 text-right font-bold text-base sm:text-lg">
-                        ₺{selectedMakbuz.amount.toLocaleString('tr-TR')}
+                        ₺{selectedMakbuz.amount.toLocaleString("tr-TR")}
                       </div>
                     </div>
                   </div>
@@ -1955,7 +2669,9 @@ const printMakbuz = () => {
                 {/* Footer */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mt-4 sm:mt-8">
                   <div>
-                    <label className="text-xs sm:text-sm text-gray-600">Yalnız</label>
+                    <label className="text-xs sm:text-sm text-gray-600">
+                      Yalnız
+                    </label>
                     <div className="border-b border-dotted border-gray-400 pb-1 mb-1">
                       <span className="font-semibold text-sm sm:text-base capitalize">
                         Yediyüzelli Türk Lirası
@@ -1963,9 +2679,13 @@ const printMakbuz = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs sm:text-sm text-gray-600">Yönetici</label>
+                    <label className="text-xs sm:text-sm text-gray-600">
+                      Yönetici
+                    </label>
                     <div className="border-b border-dotted border-gray-400 pb-1 mb-1 text-center">
-                      <span className="font-semibold text-sm sm:text-base">İmza</span>
+                      <span className="font-semibold text-sm sm:text-base">
+                        İmza
+                      </span>
                     </div>
                   </div>
                 </div>
