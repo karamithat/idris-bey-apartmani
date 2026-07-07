@@ -1450,11 +1450,11 @@ const ApartmentManagement = () => {
                   <Users className="h-5 w-5 mr-2" />
                   Sakin Ekle
                 </h2>
-                <div className="flex flex-wrap gap-3 items-center">
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                   <select
                     value={selectedApartment || ""}
                     onChange={(e) => setSelectedApartment(e.target.value)}
-                    className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full sm:w-auto px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm sm:text-base"
                   >
                     <option value="">Daire Seçin</option>
                     {[...Array(7)].map((_, floorIdx) => {
@@ -1477,14 +1477,14 @@ const ApartmentManagement = () => {
                     onChange={(e) => setNewResident(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleAddResident()}
                     placeholder="Sakin adı..."
-                    className="flex-1 min-w-48 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none"
+                    className="w-full sm:flex-1 sm:min-w-48 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none text-sm sm:text-base"
                   />
                   <button
                     onClick={handleAddResident}
                     disabled={!selectedApartment || !newResident.trim()}
-                    className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    className="w-full sm:w-auto px-6 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                   >
-                    <PlusCircle className="h-4 w-4 inline mr-2" />
+                    <PlusCircle className="h-4 w-4 mr-2" />
                     Ekle
                   </button>
                 </div>
@@ -1492,42 +1492,54 @@ const ApartmentManagement = () => {
             )}
 
             {/* Apartman Bilgileri */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-indigo-500">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-indigo-500">
                 <div className="flex items-center">
-                  <Building2 className="h-8 w-8 text-indigo-500 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Toplam Kat</p>
-                    <p className="text-2xl font-bold text-gray-900">7</p>
+                  <Building2 className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-500 mr-2 sm:mr-3 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">
+                      Toplam Kat
+                    </p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                      7
+                    </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-500">
+              <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-purple-500">
                 <div className="flex items-center">
-                  <Home className="h-8 w-8 text-purple-500 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Toplam Daire</p>
-                    <p className="text-2xl font-bold text-gray-900">24</p>
+                  <Home className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 mr-2 sm:mr-3 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">
+                      Toplam Daire
+                    </p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                      24
+                    </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-500">
+              <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-green-500">
                 <div className="flex items-center">
-                  <Users className="h-8 w-8 text-green-500 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Toplam Sakin</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-green-500 mr-2 sm:mr-3 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">
+                      Toplam Sakin
+                    </p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">
                       {totalResidents}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-orange-500">
+              <div className="bg-white rounded-lg shadow-md p-3 sm:p-4 border-l-4 border-orange-500">
                 <div className="flex items-center">
-                  <Home className="h-8 w-8 text-orange-500 mr-3" />
-                  <div>
-                    <p className="text-sm text-gray-500">Boş Daire</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                  <Home className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 mr-2 sm:mr-3 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm text-gray-500 truncate">
+                      Boş Daire
+                    </p>
+                    <p className="text-lg sm:text-2xl font-bold text-gray-900">
                       {emptyApartments}
                     </p>
                   </div>
@@ -1535,119 +1547,159 @@ const ApartmentManagement = () => {
               </div>
             </div>
 
+            {/* Doluluk Göstergesi Açıklaması */}
+            <div className="flex flex-wrap items-center gap-4 mb-4 px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Dolu Daire
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-gray-300 inline-block"></span>
+                <span className="text-xs sm:text-sm text-gray-600">
+                  Boş Daire
+                </span>
+              </div>
+            </div>
+
             {/* Bina Görünümü */}
-            <div className="bg-amber-800 p-4 rounded-t-3xl shadow-2xl">
+            <div className="bg-gradient-to-b from-amber-800 to-amber-900 p-2.5 sm:p-4 md:p-6 rounded-2xl sm:rounded-t-3xl shadow-2xl">
               {/* Çatı */}
-              <div className="bg-red-700 h-10 rounded-t-3xl mb-3 flex items-center justify-center">
-                <span className="text-white font-bold">🏠 ÇATI</span>
+              <div className="bg-gradient-to-b from-red-600 to-red-800 h-8 sm:h-10 rounded-t-2xl sm:rounded-t-3xl mb-2.5 sm:mb-4 flex items-center justify-center shadow-inner">
+                <span className="text-white font-bold text-xs sm:text-base tracking-wide">
+                  🏠 ÇATI
+                </span>
               </div>
 
               {/* Katlar */}
-              {[...Array(7)].map((_, floorIdx) => {
-                const floor = 7 - floorIdx;
-                const apartmentCount = floorConfig[floor - 1];
-                const isSpecialFloor = apartmentCount === 2;
+              <div className="space-y-2.5 sm:space-y-4">
+                {[...Array(7)].map((_, floorIdx) => {
+                  const floor = 7 - floorIdx;
+                  const apartmentCount = floorConfig[floor - 1];
+                  const isSpecialFloor = apartmentCount === 2;
 
-                return (
-                  <div key={floor} className="mb-3">
-                    {/* Kat Etiketi */}
-                    <div className="flex items-center mb-2">
-                      <div className="bg-amber-600 text-white text-sm font-bold px-3 py-1 rounded">
-                        {getFloorLabel(floor)}
-                      </div>
-                    </div>
-
-                    {/* Daireler */}
+                  return (
                     <div
-                      className={`grid gap-3 ${
-                        isSpecialFloor ? "grid-cols-2" : "grid-cols-4"
-                      }`}
+                      key={floor}
+                      className="bg-black/10 rounded-xl p-2 sm:p-3"
                     >
-                      {[...Array(apartmentCount)].map((_, aptIdx) => {
-                        const aptKey = `${floor}-${aptIdx + 1}`;
-                        const residents = apartments[aptKey] || [];
-                        const isSelected = selectedApartment === aptKey;
-                        const daireNo = getDaireNo(floor, aptIdx + 1);
+                      {/* Kat Etiketi */}
+                      <div className="flex items-center mb-2">
+                        <div className="bg-amber-600 text-white text-xs sm:text-sm font-bold px-2.5 sm:px-3 py-1 rounded-md shadow-sm">
+                          {getFloorLabel(floor)}
+                        </div>
+                      </div>
 
-                        return (
-                          <div
-                            key={aptKey}
-                            onClick={() =>
-                              user?.role === "admin" &&
-                              setSelectedApartment(aptKey)
-                            }
-                            className={`
-                              bg-gradient-to-b from-gray-100 to-gray-200 
-                              rounded-lg p-3 min-h-32 
-                              border-4 transition-all duration-200
-                              ${user?.role === "admin" ? "cursor-pointer" : "cursor-default"}
-                              ${
-                                isSelected
-                                  ? "border-indigo-500 shadow-lg scale-105"
-                                  : "border-gray-400 hover:border-indigo-300"
+                      {/* Daireler */}
+                      <div
+                        className={`grid gap-2 sm:gap-3 ${
+                          isSpecialFloor
+                            ? "grid-cols-2"
+                            : "grid-cols-2 sm:grid-cols-4"
+                        }`}
+                      >
+                        {[...Array(apartmentCount)].map((_, aptIdx) => {
+                          const aptKey = `${floor}-${aptIdx + 1}`;
+                          const residents = apartments[aptKey] || [];
+                          const isOccupied = residents.length > 0;
+                          const isSelected = selectedApartment === aptKey;
+                          const daireNo = getDaireNo(floor, aptIdx + 1);
+
+                          return (
+                            <div
+                              key={aptKey}
+                              onClick={() =>
+                                user?.role === "admin" &&
+                                setSelectedApartment(aptKey)
                               }
-                            `}
-                          >
-                            {/* Kapı */}
-                            <div className="flex justify-center mb-2">
-                              <div className="w-8 h-10 bg-amber-700 rounded-t-lg relative">
-                                <div className="absolute right-1.5 top-4 w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+                              className={`
+                                relative bg-gradient-to-b from-gray-50 to-gray-200
+                                rounded-lg sm:rounded-xl p-2 sm:p-3 min-h-[92px] sm:min-h-32
+                                border-2 sm:border-4 transition-all duration-200
+                                ${user?.role === "admin" ? "cursor-pointer active:scale-95" : "cursor-default"}
+                                ${
+                                  isSelected
+                                    ? "border-indigo-500 shadow-lg sm:scale-105"
+                                    : isOccupied
+                                      ? "border-emerald-400 hover:border-emerald-500"
+                                      : "border-gray-300 hover:border-indigo-300"
+                                }
+                              `}
+                            >
+                              {/* Doluluk Noktası */}
+                              <span
+                                className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${
+                                  isOccupied ? "bg-emerald-500" : "bg-gray-300"
+                                }`}
+                              />
+
+                              {/* Kapı */}
+                              <div className="flex justify-center mb-1.5 sm:mb-2">
+                                <div className="w-6 h-8 sm:w-8 sm:h-10 bg-amber-700 rounded-t-md sm:rounded-t-lg relative">
+                                  <div className="absolute right-1 top-3 sm:right-1.5 sm:top-4 w-1 h-1 sm:w-1.5 sm:h-1.5 bg-yellow-400 rounded-full"></div>
+                                </div>
+                              </div>
+
+                              {/* Daire Numarası */}
+                              <div className="text-center text-xs sm:text-sm font-bold text-gray-700 mb-1 sm:mb-2">
+                                D.{daireNo}
+                              </div>
+
+                              {/* Sakinler */}
+                              <div className="space-y-1">
+                                {residents.length === 0 ? (
+                                  <div className="text-[10px] sm:text-xs text-gray-400 text-center italic">
+                                    Boş
+                                  </div>
+                                ) : (
+                                  residents.map((resident, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center justify-between bg-emerald-100 rounded px-1.5 sm:px-2 py-0.5 sm:py-1 group"
+                                    >
+                                      <span
+                                        className="text-[10px] sm:text-xs text-gray-700 truncate"
+                                        title={resident}
+                                      >
+                                        👤 {resident}
+                                      </span>
+                                      {user?.role === "admin" && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleRemoveResident(aptKey, idx);
+                                          }}
+                                          className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0"
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))
+                                )}
                               </div>
                             </div>
-
-                            {/* Daire Numarası */}
-                            <div className="text-center text-sm font-bold text-gray-700 mb-2">
-                              D.{daireNo}
-                            </div>
-
-                            {/* Sakinler */}
-                            <div className="space-y-1">
-                              {residents.length === 0 ? (
-                                <div className="text-xs text-gray-400 text-center italic">
-                                  Boş
-                                </div>
-                              ) : (
-                                residents.map((resident, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center justify-between bg-blue-100 rounded px-2 py-1 group"
-                                  >
-                                    <span className="text-xs text-gray-700 truncate">
-                                      👤 {resident}
-                                    </span>
-                                    {user?.role === "admin" && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleRemoveResident(aptKey, idx);
-                                        }}
-                                        className="text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
-                                      >
-                                        <X className="h-3 w-3" />
-                                      </button>
-                                    )}
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
             {/* Zemin */}
-            <div className="bg-gray-600 h-8 rounded-b-lg flex items-center justify-center">
-              <span className="text-gray-300 text-sm">🚪 GİRİŞ</span>
+            <div className="bg-gradient-to-b from-gray-600 to-gray-700 h-7 sm:h-8 rounded-b-lg flex items-center justify-center shadow-inner">
+              <span className="text-gray-200 text-xs sm:text-sm font-medium">
+                🚪 GİRİŞ
+              </span>
             </div>
 
             {/* Sakin Listesi */}
-            <div className="mt-6 bg-white rounded-lg shadow-md p-6">
+            <div className="mt-6 bg-white rounded-lg shadow-md p-4 sm:p-6">
               <h3 className="font-semibold text-gray-700 mb-4 flex items-center">
-                <Users className="h-5 w-5 mr-2" />
+                <Users className="h-5 w-5 mr-2 flex-shrink-0" />
                 Sakin Listesi
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
