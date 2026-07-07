@@ -99,6 +99,11 @@ const ApartmentManagement = () => {
   const [selectedMakbuz, setSelectedMakbuz] = useState(null);
   const AIDAT_AMOUNT = 750;
 
+  // Yönetici Daire Bilgisi (Necati Arslan - Aidat'tan muaf, Hidrofor'dan muaf DEĞİL)
+  const YONETICI_DAIRE_NO = 22;
+  const YONETICI_APT_KEY = "6-4";
+  const YONETICI_ADI = "Necati Arslan";
+
   // Hidrofor State'leri
   const [hidroforPayments, setHidroforPayments] = useState({});
   const [hidroforLoading, setHidroforLoading] = useState(true);
@@ -477,9 +482,10 @@ const ApartmentManagement = () => {
     }
   };
 
-  // Aidat ödeme kaydet
+  // Aidat ödeme kaydet (Yönetici dairesi hariç)
   const handleAidatPayment = async (daireKey, paid) => {
     if (!user?.role === "admin") return;
+    if (daireKey === YONETICI_APT_KEY) return; // Yönetici dairesi aidattan muaf, kayıt yapılmaz
 
     try {
       const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, "0")}`;
@@ -507,7 +513,7 @@ const ApartmentManagement = () => {
     }
   };
 
-  // Hidrofor taksit ödeme kaydet
+  // Hidrofor taksit ödeme kaydet (Yönetici dairesi dahil - hidroforda muafiyet yok)
   const handleHidroforPayment = async (aptKey, taksit, paid) => {
     if (user?.role !== "admin") return;
 
@@ -1749,10 +1755,11 @@ const ApartmentManagement = () => {
                 {(() => {
                   const monthKey = `${selectedAidatYear}-${String(selectedAidatMonth).padStart(2, "0")}`;
                   const monthPayments = aidatPayments[monthKey] || {};
-                  const paidCount = Object.values(monthPayments).filter(
-                    (p) => p.paid,
+                  const paidCount = Object.entries(monthPayments).filter(
+                    ([key, p]) => key !== YONETICI_APT_KEY && p.paid,
                   ).length;
-                  const unpaidCount = 24 - paidCount;
+                  const totalOdemeYapacakDaire = totalApartments - 1; // Yönetici dairesi hariç
+                  const unpaidCount = totalOdemeYapacakDaire - paidCount;
                   const totalCollected = paidCount * AIDAT_AMOUNT;
                   const totalPending = unpaidCount * AIDAT_AMOUNT;
 
@@ -1764,7 +1771,7 @@ const ApartmentManagement = () => {
                           <div>
                             <p className="text-sm text-gray-500">Ödenen</p>
                             <p className="text-2xl font-bold text-gray-900">
-                              {paidCount}/24
+                              {paidCount}/{totalOdemeYapacakDaire}
                             </p>
                           </div>
                         </div>
@@ -1775,7 +1782,7 @@ const ApartmentManagement = () => {
                           <div>
                             <p className="text-sm text-gray-500">Ödenmedi</p>
                             <p className="text-2xl font-bold text-gray-900">
-                              {unpaidCount}/24
+                              {unpaidCount}/{totalOdemeYapacakDaire}
                             </p>
                           </div>
                         </div>
@@ -1880,91 +1887,123 @@ const ApartmentManagement = () => {
                         }
 
                         return allApartments.map(
-                          ({ daireNo, aptKey, residents, payment }) => (
-                            <tr
-                              key={aptKey}
-                              className="hover:bg-gray-50 print:hover:bg-white"
-                            >
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                Daire {daireNo}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                {residents.length > 0 ? (
-                                  residents.join(", ")
-                                ) : (
-                                  <span className="text-gray-400 italic">
-                                    Boş
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
-                                ₺{AIDAT_AMOUNT.toLocaleString("tr-TR")}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
-                                {payment?.paid && payment?.paymentDate ? (
-                                  <div className="flex items-center justify-center">
-                                    <Calendar className="h-4 w-4 mr-1 text-green-600" />
-                                    {new Date(
-                                      payment.paymentDate,
-                                    ).toLocaleDateString("tr-TR")}
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-400">-</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
-                                <div className="flex items-center justify-center space-x-3">
-                                  {user?.role === "admin" && (
-                                    <input
-                                      type="checkbox"
-                                      checked={payment?.paid || false}
-                                      onChange={(e) =>
-                                        handleAidatPayment(
-                                          aptKey,
-                                          e.target.checked,
-                                        )
-                                      }
-                                      className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                                    />
-                                  )}
+                          ({ daireNo, aptKey, residents, payment }) => {
+                            const isYoneticiDairesi =
+                              aptKey === YONETICI_APT_KEY;
 
-                                  {!user?.role && (
-                                    <span
-                                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                                        payment?.paid
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
-                                    >
-                                      {payment?.paid ? "Ödendi" : "Ödenmedi"}
+                            return (
+                              <tr
+                                key={aptKey}
+                                className={`hover:bg-gray-50 print:hover:bg-white ${
+                                  isYoneticiDairesi ? "bg-indigo-50" : ""
+                                }`}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  Daire {daireNo}
+                                  {isYoneticiDairesi && (
+                                    <span className="ml-2 inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-100 text-indigo-700">
+                                      Yönetici
                                     </span>
                                   )}
-
-                                  {payment?.paid && (
-                                    <button
-                                      onClick={() =>
-                                        handleShowMakbuz(
-                                          daireNo,
-                                          residents,
-                                          payment,
-                                          aptKey,
-                                        )
-                                      }
-                                      className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
-                                      title="Makbuz Görüntüle"
-                                    >
-                                      <Eye className="h-3.5 w-3.5 mr-1" />
-                                      Makbuz
-                                    </button>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-900">
+                                  {isYoneticiDairesi ? (
+                                    YONETICI_ADI
+                                  ) : residents.length > 0 ? (
+                                    residents.join(", ")
+                                  ) : (
+                                    <span className="text-gray-400 italic">
+                                      Boş
+                                    </span>
                                   )}
-                                </div>
-                              </td>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-gray-900">
+                                  {isYoneticiDairesi ? (
+                                    <span className="text-gray-400">-</span>
+                                  ) : (
+                                    `₺${AIDAT_AMOUNT.toLocaleString("tr-TR")}`
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                                  {isYoneticiDairesi ? (
+                                    <span className="text-gray-400">-</span>
+                                  ) : payment?.paid && payment?.paymentDate ? (
+                                    <div className="flex items-center justify-center">
+                                      <Calendar className="h-4 w-4 mr-1 text-green-600" />
+                                      {new Date(
+                                        payment.paymentDate,
+                                      ).toLocaleDateString("tr-TR")}
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center print:hidden">
+                                  {isYoneticiDairesi ? (
+                                    <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700">
+                                      Muaf (Yönetici)
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center justify-center space-x-3">
+                                      {user?.role === "admin" && (
+                                        <input
+                                          type="checkbox"
+                                          checked={payment?.paid || false}
+                                          onChange={(e) =>
+                                            handleAidatPayment(
+                                              aptKey,
+                                              e.target.checked,
+                                            )
+                                          }
+                                          className="h-5 w-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                                        />
+                                      )}
 
-                              <td className="hidden print:table-cell px-6 py-4 whitespace-nowrap text-center text-sm">
-                                {payment?.paid ? "✓ Ödendi" : "✗ Ödenmedi"}
-                              </td>
-                            </tr>
-                          ),
+                                      {!user?.role && (
+                                        <span
+                                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                                            payment?.paid
+                                              ? "bg-green-100 text-green-800"
+                                              : "bg-red-100 text-red-800"
+                                          }`}
+                                        >
+                                          {payment?.paid
+                                            ? "Ödendi"
+                                            : "Ödenmedi"}
+                                        </span>
+                                      )}
+
+                                      {payment?.paid && (
+                                        <button
+                                          onClick={() =>
+                                            handleShowMakbuz(
+                                              daireNo,
+                                              residents,
+                                              payment,
+                                              aptKey,
+                                            )
+                                          }
+                                          className="flex items-center px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors shadow-sm"
+                                          title="Makbuz Görüntüle"
+                                        >
+                                          <Eye className="h-3.5 w-3.5 mr-1" />
+                                          Makbuz
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+
+                                <td className="hidden print:table-cell px-6 py-4 whitespace-nowrap text-center text-sm">
+                                  {isYoneticiDairesi
+                                    ? "Muaf (Yönetici)"
+                                    : payment?.paid
+                                      ? "✓ Ödendi"
+                                      : "✗ Ödenmedi"}
+                                </td>
+                              </tr>
+                            );
+                          },
                         );
                       })()}
                     </tbody>
@@ -2154,111 +2193,130 @@ const ApartmentManagement = () => {
                         }
 
                         return allApartments.map(
-                          ({ daireNo, aptKey, residents, payment }) => (
-                            <tr
-                              key={aptKey}
-                              className="hover:bg-gray-50 print:hover:bg-white"
-                            >
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                Daire {daireNo}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-900">
-                                {residents.length > 0 ? (
-                                  residents.join(", ")
-                                ) : (
-                                  <span className="text-gray-400 italic">
-                                    Boş
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  {user?.role === "admin" ? (
-                                    <input
-                                      type="checkbox"
-                                      checked={payment?.taksit1?.paid || false}
-                                      onChange={(e) =>
-                                        handleHidroforPayment(
-                                          aptKey,
-                                          "taksit1",
-                                          e.target.checked,
-                                        )
-                                      }
-                                      className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer print:hidden"
-                                    />
-                                  ) : (
-                                    <span
-                                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full print:hidden ${
-                                        payment?.taksit1?.paid
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
-                                    >
+                          ({ daireNo, aptKey, residents, payment }) => {
+                            const isYoneticiDairesi =
+                              aptKey === YONETICI_APT_KEY;
+                            const displayResidents = isYoneticiDairesi
+                              ? YONETICI_ADI
+                              : residents.length > 0
+                                ? residents.join(", ")
+                                : null;
+
+                            return (
+                              <tr
+                                key={aptKey}
+                                className={`hover:bg-gray-50 print:hover:bg-white ${
+                                  isYoneticiDairesi ? "bg-indigo-50" : ""
+                                }`}
+                              >
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  Daire {daireNo}
+                                  {isYoneticiDairesi && (
+                                    <span className="ml-2 inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-100 text-indigo-700">
+                                      Yönetici
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-900">
+                                  {displayResidents || (
+                                    <span className="text-gray-400 italic">
+                                      Boş
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                  <div className="flex flex-col items-center gap-1">
+                                    {user?.role === "admin" ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          payment?.taksit1?.paid || false
+                                        }
+                                        onChange={(e) =>
+                                          handleHidroforPayment(
+                                            aptKey,
+                                            "taksit1",
+                                            e.target.checked,
+                                          )
+                                        }
+                                        className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer print:hidden"
+                                      />
+                                    ) : (
+                                      <span
+                                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full print:hidden ${
+                                          payment?.taksit1?.paid
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-red-100 text-red-800"
+                                        }`}
+                                      >
+                                        {payment?.taksit1?.paid
+                                          ? "Ödendi"
+                                          : "Ödenmedi"}
+                                      </span>
+                                    )}
+                                    <span className="hidden print:inline text-xs">
                                       {payment?.taksit1?.paid
-                                        ? "Ödendi"
-                                        : "Ödenmedi"}
+                                        ? "✓ Ödendi"
+                                        : "✗ Ödenmedi"}
                                     </span>
-                                  )}
-                                  <span className="hidden print:inline text-xs">
-                                    {payment?.taksit1?.paid
-                                      ? "✓ Ödendi"
-                                      : "✗ Ödenmedi"}
-                                  </span>
-                                  {payment?.taksit1?.paid &&
-                                    payment?.taksit1?.paymentDate && (
-                                      <span className="text-xs text-gray-500">
-                                        {new Date(
-                                          payment.taksit1.paymentDate,
-                                        ).toLocaleDateString("tr-TR")}
+                                    {payment?.taksit1?.paid &&
+                                      payment?.taksit1?.paymentDate && (
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(
+                                            payment.taksit1.paymentDate,
+                                          ).toLocaleDateString("tr-TR")}
+                                        </span>
+                                      )}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-center">
+                                  <div className="flex flex-col items-center gap-1">
+                                    {user?.role === "admin" ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          payment?.taksit2?.paid || false
+                                        }
+                                        onChange={(e) =>
+                                          handleHidroforPayment(
+                                            aptKey,
+                                            "taksit2",
+                                            e.target.checked,
+                                          )
+                                        }
+                                        className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer print:hidden"
+                                      />
+                                    ) : (
+                                      <span
+                                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full print:hidden ${
+                                          payment?.taksit2?.paid
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-red-100 text-red-800"
+                                        }`}
+                                      >
+                                        {payment?.taksit2?.paid
+                                          ? "Ödendi"
+                                          : "Ödenmedi"}
                                       </span>
                                     )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  {user?.role === "admin" ? (
-                                    <input
-                                      type="checkbox"
-                                      checked={payment?.taksit2?.paid || false}
-                                      onChange={(e) =>
-                                        handleHidroforPayment(
-                                          aptKey,
-                                          "taksit2",
-                                          e.target.checked,
-                                        )
-                                      }
-                                      className="h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer print:hidden"
-                                    />
-                                  ) : (
-                                    <span
-                                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full print:hidden ${
-                                        payment?.taksit2?.paid
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-red-100 text-red-800"
-                                      }`}
-                                    >
+                                    <span className="hidden print:inline text-xs">
                                       {payment?.taksit2?.paid
-                                        ? "Ödendi"
-                                        : "Ödenmedi"}
+                                        ? "✓ Ödendi"
+                                        : "✗ Ödenmedi"}
                                     </span>
-                                  )}
-                                  <span className="hidden print:inline text-xs">
-                                    {payment?.taksit2?.paid
-                                      ? "✓ Ödendi"
-                                      : "✗ Ödenmedi"}
-                                  </span>
-                                  {payment?.taksit2?.paid &&
-                                    payment?.taksit2?.paymentDate && (
-                                      <span className="text-xs text-gray-500">
-                                        {new Date(
-                                          payment.taksit2.paymentDate,
-                                        ).toLocaleDateString("tr-TR")}
-                                      </span>
-                                    )}
-                                </div>
-                              </td>
-                            </tr>
-                          ),
+                                    {payment?.taksit2?.paid &&
+                                      payment?.taksit2?.paymentDate && (
+                                        <span className="text-xs text-gray-500">
+                                          {new Date(
+                                            payment.taksit2.paymentDate,
+                                          ).toLocaleDateString("tr-TR")}
+                                        </span>
+                                      )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          },
                         );
                       })()}
                     </tbody>
