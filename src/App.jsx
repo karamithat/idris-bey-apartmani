@@ -127,7 +127,7 @@ const ApartmentManagement = () => {
 
   const getFloorLabel = (floor) => {
     if (floor === 1) return "Zemin Kat";
-    return `${floor}. Kat`;
+    return `${floor - 1}. Kat`;
   };
 
   const showNotification = (message, type = "info", duration = 4000) => {
@@ -1213,6 +1213,7 @@ const ApartmentManagement = () => {
                     >
                       <option value={2025}>2025</option>
                       <option value={2026}>2026</option>
+                      <option value={2027}>2027</option>
                     </select>
                   </div>
                 </div>
