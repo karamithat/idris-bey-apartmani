@@ -584,13 +584,15 @@ const ApartmentManagement = () => {
     setPrintTarget("hidrofor");
   };
 
-  const filteredTransactions = transactions.filter(
-    (t) =>
-      t.month === selectedMonth &&
-      t.year === selectedYear &&
-      (t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.amount.toString().includes(searchTerm)),
-  );
+  const filteredTransactions = transactions
+    .filter(
+      (t) =>
+        t.month === selectedMonth &&
+        t.year === selectedYear &&
+        (t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.amount.toString().includes(searchTerm)),
+    )
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const totalIncome = filteredTransactions
     .filter((t) => t.type === "income")
